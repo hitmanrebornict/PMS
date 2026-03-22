@@ -322,14 +322,14 @@ export default function App() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={() => setIsSidebarOpen(false)}
-            className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-40 lg:hidden"
+            className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-40"
           />
         )}
       </AnimatePresence>
 
       {/* Sidebar */}
       <aside className={`
-        fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-slate-200 flex flex-col transition-transform duration-300 lg:static lg:translate-x-0
+        fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-slate-200 flex flex-col transition-transform duration-300
         ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
       `}>
         <div className="p-6 border-b border-slate-100 flex items-center justify-between">
@@ -422,11 +422,22 @@ export default function App() {
             <span>StayFlow</span>
           </div>
           <button 
-            onClick={() => setIsSidebarOpen(true)}
+            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
             className="p-2 text-slate-600 hover:bg-slate-50 rounded-lg"
           >
             <Menu size={24} />
           </button>
+        </header>
+
+        {/* Desktop Header */}
+        <header className="hidden lg:flex bg-white border-b border-slate-200 p-4 items-center sticky top-0 z-30">
+          <button 
+            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+            className="p-2 text-slate-600 hover:bg-slate-50 rounded-lg mr-4"
+          >
+            <Menu size={24} />
+          </button>
+          <h1 className="text-xl font-bold text-slate-900">StayFlow PMS</h1>
         </header>
 
         <div className="flex-1 overflow-y-auto p-4 md:p-8">
