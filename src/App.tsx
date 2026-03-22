@@ -17,6 +17,7 @@ import {
   Trash2,
   Edit2,
   X,
+  Menu,
   Users,
   FileText,
   Download
@@ -51,6 +52,7 @@ const customerRepo = new CustomerRepository();
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'properties' | 'rooms' | 'maintenance' | 'revenue' | 'customers' | 'bookings' | 'fees'>('dashboard');
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [properties, setProperties] = useState<Property[]>([]);
   const [rooms, setRooms] = useState<Room[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -311,66 +313,88 @@ export default function App() {
   };
 
   return (
-    <div className="flex h-screen bg-slate-50 overflow-hidden">
+    <div className="flex h-screen bg-slate-50 overflow-hidden relative">
+      {/* Mobile Sidebar Backdrop */}
+      <AnimatePresence>
+        {isSidebarOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setIsSidebarOpen(false)}
+            className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-40 lg:hidden"
+          />
+        )}
+      </AnimatePresence>
+
       {/* Sidebar */}
-      <aside className="w-64 bg-white border-r border-slate-200 flex flex-col">
-        <div className="p-6 border-bottom border-slate-100">
+      <aside className={`
+        fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-slate-200 flex flex-col transition-transform duration-300 lg:static lg:translate-x-0
+        ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+      `}>
+        <div className="p-6 border-b border-slate-100 flex items-center justify-between">
           <div className="flex items-center gap-2 text-indigo-600 font-bold text-xl">
             <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white">
               <Building2 size={20} />
             </div>
             <span>StayFlow PMS</span>
           </div>
+          <button 
+            onClick={() => setIsSidebarOpen(false)}
+            className="p-1 text-slate-400 hover:text-slate-600 lg:hidden"
+          >
+            <X size={20} />
+          </button>
         </div>
         
-        <nav className="flex-1 p-4 space-y-1">
+        <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
           <SidebarItem 
             icon={<LayoutDashboard size={20} />} 
             label="Dashboard" 
             active={activeTab === 'dashboard'} 
-            onClick={() => setActiveTab('dashboard')} 
+            onClick={() => { setActiveTab('dashboard'); setIsSidebarOpen(false); }} 
           />
           <SidebarItem 
             icon={<Building2 size={20} />} 
             label="Properties" 
             active={activeTab === 'properties'} 
-            onClick={() => setActiveTab('properties')} 
+            onClick={() => { setActiveTab('properties'); setIsSidebarOpen(false); }} 
           />
           <SidebarItem 
             icon={<BedDouble size={20} />} 
             label="Rooms" 
             active={activeTab === 'rooms'} 
-            onClick={() => setActiveTab('rooms')} 
+            onClick={() => { setActiveTab('rooms'); setIsSidebarOpen(false); }} 
           />
           <SidebarItem 
             icon={<Wrench size={20} />} 
             label="Maintenance" 
             active={activeTab === 'maintenance'} 
-            onClick={() => setActiveTab('maintenance')} 
+            onClick={() => { setActiveTab('maintenance'); setIsSidebarOpen(false); }} 
           />
           <SidebarItem 
             icon={<BarChart3 size={20} />} 
             label="Revenue" 
             active={activeTab === 'revenue'} 
-            onClick={() => setActiveTab('revenue')} 
+            onClick={() => { setActiveTab('revenue'); setIsSidebarOpen(false); }} 
           />
           <SidebarItem 
             icon={<Users size={20} />} 
             label="Customers" 
             active={activeTab === 'customers'} 
-            onClick={() => setActiveTab('customers')} 
+            onClick={() => { setActiveTab('customers'); setIsSidebarOpen(false); }} 
           />
           <SidebarItem 
             icon={<CalendarDays size={20} />} 
             label="Bookings" 
             active={activeTab === 'bookings'} 
-            onClick={() => setActiveTab('bookings')} 
+            onClick={() => { setActiveTab('bookings'); setIsSidebarOpen(false); }} 
           />
           <SidebarItem 
             icon={<FileText size={20} />} 
             label="Fees Collection" 
             active={activeTab === 'fees'} 
-            onClick={() => setActiveTab('fees')} 
+            onClick={() => { setActiveTab('fees'); setIsSidebarOpen(false); }} 
           />
         </nav>
         
@@ -388,8 +412,25 @@ export default function App() {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-y-auto p-8">
-        <AnimatePresence mode="wait">
+      <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        {/* Mobile Header */}
+        <header className="lg:hidden bg-white border-b border-slate-200 p-4 flex items-center justify-between sticky top-0 z-30">
+          <div className="flex items-center gap-2 text-indigo-600 font-bold text-lg">
+            <div className="w-7 h-7 bg-indigo-600 rounded-lg flex items-center justify-center text-white">
+              <Building2 size={16} />
+            </div>
+            <span>StayFlow</span>
+          </div>
+          <button 
+            onClick={() => setIsSidebarOpen(true)}
+            className="p-2 text-slate-600 hover:bg-slate-50 rounded-lg"
+          >
+            <Menu size={24} />
+          </button>
+        </header>
+
+        <div className="flex-1 overflow-y-auto p-4 md:p-8">
+          <AnimatePresence mode="wait">
           {activeTab === 'dashboard' && (
             <motion.div
               key="dashboard"
@@ -398,18 +439,18 @@ export default function App() {
               exit={{ opacity: 0, y: -10 }}
               className="space-y-8"
             >
-              <header className="flex justify-between items-end">
+              <header className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
                 <div>
                   <h1 className="text-2xl font-bold text-slate-900">Dashboard</h1>
                   <p className="text-slate-500">Welcome back, here's what's happening today.</p>
                 </div>
-                <div className="text-sm font-medium text-slate-500 bg-white px-4 py-2 rounded-lg border border-slate-200">
+                <div className="text-sm font-medium text-slate-500 bg-white px-4 py-2 rounded-lg border border-slate-200 w-full sm:w-auto text-center">
                   {formatDate(new Date().toISOString())}
                 </div>
               </header>
 
               {/* Stats Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
                 <StatCard 
                   title="Total Rooms" 
                   value={stats.totalRooms} 
@@ -589,7 +630,7 @@ export default function App() {
               exit={{ opacity: 0, x: -20 }}
               className="space-y-6"
             >
-              <header className="flex justify-between items-center">
+              <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
                   <h1 className="text-2xl font-bold text-slate-900">Properties</h1>
                   <p className="text-slate-500">Manage your homestay locations.</p>
@@ -599,7 +640,7 @@ export default function App() {
                     setSelectedProperty(null);
                     setIsPropertyModalOpen(true);
                   }}
-                  className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-medium flex items-center gap-2 transition-colors"
+                  className="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-medium flex items-center justify-center gap-2 transition-colors"
                 >
                   <Plus size={20} />
                   Add Property
@@ -668,7 +709,7 @@ export default function App() {
               exit={{ opacity: 0, x: -20 }}
               className="space-y-6"
             >
-              <header className="flex justify-between items-center">
+              <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
                   <h1 className="text-2xl font-bold text-slate-900">Rooms</h1>
                   <p className="text-slate-500">Manage individual rooms and their rates.</p>
@@ -678,7 +719,7 @@ export default function App() {
                     setSelectedRoom(null);
                     setIsRoomModalOpen(true);
                   }}
-                  className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-medium flex items-center gap-2 transition-colors"
+                  className="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-medium flex items-center justify-center gap-2 transition-colors"
                 >
                   <Plus size={20} />
                   Add Room
@@ -686,7 +727,8 @@ export default function App() {
               </header>
 
               <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-                <table className="w-full text-left border-collapse">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse min-w-[600px]">
                   <thead>
                     <tr className="bg-slate-50 border-b border-slate-200">
                       <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Room #</th>
@@ -751,8 +793,9 @@ export default function App() {
                   </tbody>
                 </table>
               </div>
-            </motion.div>
-          )}
+            </div>
+          </motion.div>
+        )}
 
           {activeTab === 'maintenance' && (
             <motion.div
@@ -762,14 +805,14 @@ export default function App() {
               exit={{ opacity: 0, x: -20 }}
               className="space-y-6"
             >
-              <header className="flex justify-between items-center">
+              <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
                   <h1 className="text-2xl font-bold text-slate-900">Maintenance Log</h1>
                   <p className="text-slate-500">Track repairs and maintenance costs.</p>
                 </div>
                 <button 
                   onClick={() => setIsMaintenanceModalOpen(true)}
-                  className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-medium flex items-center gap-2 transition-colors"
+                  className="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-medium flex items-center justify-center gap-2 transition-colors"
                 >
                   <Plus size={20} />
                   Log Repair
@@ -777,7 +820,8 @@ export default function App() {
               </header>
 
               <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-                <table className="w-full text-left border-collapse">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse min-w-[600px]">
                   <thead>
                     <tr className="bg-slate-50 border-b border-slate-200">
                       <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Date</th>
@@ -822,8 +866,9 @@ export default function App() {
                   </tbody>
                 </table>
               </div>
-            </motion.div>
-          )}
+            </div>
+          </motion.div>
+        )}
 
           {activeTab === 'revenue' && (
             <motion.div
@@ -833,9 +878,11 @@ export default function App() {
               exit={{ opacity: 0, x: -20 }}
               className="space-y-6"
             >
-              <header>
-                <h1 className="text-2xl font-bold text-slate-900">Revenue Report</h1>
-                <p className="text-slate-500">Monthly earnings summary in MYR.</p>
+              <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div>
+                  <h1 className="text-2xl font-bold text-slate-900">Revenue Report</h1>
+                  <p className="text-slate-500">Monthly earnings summary in MYR.</p>
+                </div>
               </header>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -909,7 +956,7 @@ export default function App() {
               exit={{ opacity: 0, x: -20 }}
               className="space-y-6"
             >
-              <header className="flex justify-between items-center">
+              <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
                   <h1 className="text-2xl font-bold text-slate-900">Customers</h1>
                   <p className="text-slate-500">Manage your guest database.</p>
@@ -919,7 +966,7 @@ export default function App() {
                     setSelectedCustomer(null);
                     setIsCustomerModalOpen(true);
                   }}
-                  className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-medium flex items-center gap-2 transition-colors"
+                  className="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-medium flex items-center justify-center gap-2 transition-colors"
                 >
                   <Plus size={20} />
                   Add Customer
@@ -927,7 +974,8 @@ export default function App() {
               </header>
 
               <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-                <table className="w-full text-left border-collapse">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse min-w-[600px]">
                   <thead>
                     <tr className="bg-slate-50 border-b border-slate-200">
                       <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Name</th>
@@ -978,8 +1026,9 @@ export default function App() {
                   </tbody>
                 </table>
               </div>
-            </motion.div>
-          )}
+            </div>
+          </motion.div>
+        )}
           {activeTab === 'bookings' && (
             <motion.div
               key="bookings"
@@ -988,13 +1037,16 @@ export default function App() {
               exit={{ opacity: 0, x: -20 }}
               className="space-y-6"
             >
-              <header>
-                <h1 className="text-2xl font-bold text-slate-900">All Bookings</h1>
-                <p className="text-slate-500">History of all guest stays and payments.</p>
+              <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div>
+                  <h1 className="text-2xl font-bold text-slate-900">All Bookings</h1>
+                  <p className="text-slate-500">History of all guest stays and payments.</p>
+                </div>
               </header>
 
               <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-                <table className="w-full text-left border-collapse">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse min-w-[800px]">
                   <thead>
                     <tr className="bg-slate-50 border-b border-slate-200">
                       <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Guest</th>
@@ -1065,8 +1117,9 @@ export default function App() {
                   </tbody>
                 </table>
               </div>
-            </motion.div>
-          )}
+            </div>
+          </motion.div>
+        )}
           {activeTab === 'fees' && (
             <motion.div
               key="fees"
@@ -1075,35 +1128,36 @@ export default function App() {
               exit={{ opacity: 0, x: -20 }}
               className="space-y-6"
             >
-              <header className="flex justify-between items-end">
+              <header className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
                 <div>
                   <h1 className="text-2xl font-bold text-slate-900">Fees Collection</h1>
                   <p className="text-slate-500">Manage unpaid fees and generate invoices.</p>
                 </div>
-                <div className="flex gap-4">
-                  <div className="flex flex-col gap-1">
+                <div className="flex gap-4 w-full sm:w-auto">
+                  <div className="flex flex-col gap-1 flex-1 sm:flex-none">
                     <label className="text-xs font-semibold text-slate-500 uppercase">From</label>
                     <input 
                       type="date" 
                       value={feeFilterStart}
                       onChange={(e) => setFeeFilterStart(e.target.value)}
-                      className="px-3 py-2 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+                      className="px-3 py-2 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm w-full"
                     />
                   </div>
-                  <div className="flex flex-col gap-1">
+                  <div className="flex flex-col gap-1 flex-1 sm:flex-none">
                     <label className="text-xs font-semibold text-slate-500 uppercase">To</label>
                     <input 
                       type="date" 
                       value={feeFilterEnd}
                       onChange={(e) => setFeeFilterEnd(e.target.value)}
-                      className="px-3 py-2 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+                      className="px-3 py-2 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm w-full"
                     />
                   </div>
                 </div>
               </header>
 
               <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-                <table className="w-full text-left border-collapse">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse min-w-[800px]">
                   <thead>
                     <tr className="bg-slate-50 border-b border-slate-200">
                       <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Guest</th>
@@ -1177,9 +1231,11 @@ export default function App() {
                   </tbody>
                 </table>
               </div>
-            </motion.div>
-          )}
+            </div>
+          </motion.div>
+        )}
         </AnimatePresence>
+        </div>
       </main>
 
       {/* Modals */}
@@ -1594,7 +1650,7 @@ function Modal({ isOpen, onClose, title, children }: { isOpen: boolean, onClose:
   if (!isOpen) return null;
   
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
       <motion.div 
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -1603,10 +1659,10 @@ function Modal({ isOpen, onClose, title, children }: { isOpen: boolean, onClose:
         className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
       />
       <motion.div 
-        initial={{ opacity: 0, scale: 0.95, y: 20 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.95, y: 20 }}
-        className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden"
+        initial={{ opacity: 0, y: 100 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: 100 }}
+        className="relative bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full max-w-md overflow-hidden"
       >
         <div className="p-6 border-b border-slate-100 flex justify-between items-center">
           <h2 className="text-xl font-bold text-slate-900">{title}</h2>
