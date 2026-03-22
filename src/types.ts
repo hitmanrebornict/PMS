@@ -26,10 +26,19 @@ export interface Room {
   baseRateType: BillingCycle;
 }
 
+export interface Customer {
+  id: string;
+  name: string;
+  address: string;
+  phone: string;
+  email?: string;
+}
+
 export interface Booking {
   id: string;
   roomId: string;
-  customerName: string;
+  customerId: string; // Linked to Customer entity
+  customerName: string; // Denormalized for quick access
   customerPhone?: string;
   startDate: string;
   endDate: string;

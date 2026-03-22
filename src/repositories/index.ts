@@ -1,4 +1,4 @@
-import { Property, Room, Booking, MaintenanceLog } from '../types';
+import { Property, Room, Booking, MaintenanceLog, Customer } from '../types';
 
 export interface IRepository<T> {
   getAll(): T[];
@@ -83,6 +83,12 @@ export class BookingRepository extends BaseRepository<Booking> {
       const current = new Date(date);
       return current >= start && current <= end;
     });
+  }
+}
+
+export class CustomerRepository extends BaseRepository<Customer> {
+  constructor() {
+    super('stayflow_customers');
   }
 }
 

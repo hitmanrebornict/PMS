@@ -16,22 +16,29 @@ import {
   MoreVertical,
   Trash2,
   Edit2,
-  X
+  X,
+  Users,
+  FileText,
+  Download
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import { 
   Property, 
   Room, 
   Booking, 
   MaintenanceLog, 
   BillingCycle, 
-  PaymentStatus 
+  PaymentStatus,
+  Customer 
 } from './types';
 import { 
   PropertyRepository, 
   RoomRepository, 
   BookingRepository, 
-  MaintenanceRepository 
+  MaintenanceRepository,
+  CustomerRepository 
 } from './repositories';
 import { formatCurrency, formatDate, generateWhatsAppLink } from './utils';
 
@@ -40,24 +47,32 @@ const propertyRepo = new PropertyRepository();
 const roomRepo = new RoomRepository();
 const bookingRepo = new BookingRepository();
 const maintenanceRepo = new MaintenanceRepository();
+const customerRepo = new CustomerRepository();
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'properties' | 'rooms' | 'maintenance' | 'revenue'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'properties' | 'rooms' | 'maintenance' | 'revenue' | 'customers' | 'bookings' | 'fees'>('dashboard');
   const [properties, setProperties] = useState<Property[]>([]);
   const [rooms, setRooms] = useState<Room[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [maintenanceLogs, setMaintenanceLogs] = useState<MaintenanceLog[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  
+  // Filters
+  const [feeFilterStart, setFeeFilterStart] = useState('');
+  const [feeFilterEnd, setFeeFilterEnd] = useState('');
   
   // Modals
   const [isPropertyModalOpen, setIsPropertyModalOpen] = useState(false);
   const [isRoomModalOpen, setIsRoomModalOpen] = useState(false);
   const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
   const [isMaintenanceModalOpen, setIsMaintenanceModalOpen] = useState(false);
+  const [isCustomerModalOpen, setIsCustomerModalOpen] = useState(false);
   
   // Selected items for editing
   const [selectedProperty, setSelectedProperty] = useState<Property | null>(null);
   const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
   const [selectedBookingRoom, setSelectedBookingRoom] = useState<Room | null>(null);
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
 
   useEffect(() => {
     refreshData();
@@ -68,6 +83,7 @@ export default function App() {
     setRooms(roomRepo.getAll());
     setBookings(bookingRepo.getAll());
     setMaintenanceLogs(maintenanceRepo.getAll());
+    setCustomers(customerRepo.getAll());
   };
 
   const stats = useMemo(() => {
@@ -89,6 +105,15 @@ export default function App() {
     
     return { totalRooms, occupied, vacant, arrears };
   }, [rooms, bookings]);
+
+  const handleMarkAsPaid = (bookingId: string) => {
+    const booking = bookings.find(b => b.id === bookingId);
+    if (booking) {
+      const updatedBooking = { ...booking, paymentStatus: PaymentStatus.PAID };
+      bookingRepo.update(bookingId, updatedBooking);
+      refreshData();
+    }
+  };
 
   const handleAddProperty = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -134,11 +159,19 @@ export default function App() {
     refreshData();
   };
 
-  const handleAddBooking = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleAddBookingSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!selectedBookingRoom) return;
     
     const formData = new FormData(e.currentTarget);
+    const customerId = formData.get('customerId') as string;
+    const customer = customers.find(c => c.id === customerId);
+    
+    if (!customer) {
+      alert('Please select a customer');
+      return;
+    }
+
     const startDate = formData.get('startDate') as string;
     const endDate = formData.get('endDate') as string;
     const cycle = formData.get('billingCycle') as BillingCycle;
@@ -164,8 +197,9 @@ export default function App() {
     const newBooking: Booking = {
       id: crypto.randomUUID(),
       roomId: selectedBookingRoom.id,
-      customerName: formData.get('customerName') as string,
-      customerPhone: formData.get('customerPhone') as string,
+      customerId: customer.id,
+      customerName: customer.name,
+      customerPhone: customer.phone,
       startDate,
       endDate,
       totalAmount,
@@ -177,6 +211,87 @@ export default function App() {
     setIsBookingModalOpen(false);
     setSelectedBookingRoom(null);
     refreshData();
+  };
+
+  const handleAddCustomer = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    const newCustomer: Customer = {
+      id: selectedCustomer?.id || crypto.randomUUID(),
+      name: formData.get('name') as string,
+      address: formData.get('address') as string,
+      phone: formData.get('phone') as string,
+      email: formData.get('email') as string || undefined,
+    };
+    
+    if (selectedCustomer) {
+      customerRepo.update(selectedCustomer.id, newCustomer);
+    } else {
+      customerRepo.create(newCustomer);
+    }
+    
+    setIsCustomerModalOpen(false);
+    setSelectedCustomer(null);
+    refreshData();
+  };
+
+  const generateInvoice = (booking: Booking) => {
+    const doc = new jsPDF();
+    const room = rooms.find(r => r.id === booking.roomId);
+    const property = properties.find(p => p.id === room?.propertyId);
+    const customer = customers.find(c => c.id === booking.customerId);
+
+    // Header
+    doc.setFontSize(22);
+    doc.text('StayFlow PMS Invoice', 105, 20, { align: 'center' });
+    
+    doc.setFontSize(10);
+    doc.text(`Invoice Date: ${formatDate(new Date().toISOString())}`, 105, 28, { align: 'center' });
+
+    // Property Info
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.text('From:', 20, 45);
+    doc.setFont('helvetica', 'normal');
+    doc.text(property?.name || 'StayFlow PMS', 20, 52);
+    doc.text(property?.address || 'N/A', 20, 58, { maxWidth: 80 });
+
+    // Customer Info
+    doc.setFont('helvetica', 'bold');
+    doc.text('Bill To:', 120, 45);
+    doc.setFont('helvetica', 'normal');
+    doc.text(customer?.name || booking.customerName, 120, 52);
+    doc.text(customer?.address || 'N/A', 120, 58, { maxWidth: 80 });
+
+    // Booking Details
+    autoTable(doc, {
+      startY: 80,
+      head: [['Description', 'Rate', 'Cycle', 'Duration', 'Total']],
+      body: [
+        [
+          `Room ${room?.roomNumber} (${room?.type})`,
+          formatCurrency(room?.baseRate || 0),
+          room?.baseRateType || 'N/A',
+          `${Math.ceil((new Date(booking.endDate).getTime() - new Date(booking.startDate).getTime()) / (1000 * 60 * 60 * 24))} Days`,
+          formatCurrency(booking.totalAmount)
+        ]
+      ],
+      theme: 'striped',
+      headStyles: { fillColor: [79, 70, 229] }
+    });
+
+    // Summary
+    const finalY = (doc as any).lastAutoTable.finalY + 10;
+    doc.setFont('helvetica', 'bold');
+    doc.text(`Total Amount: ${formatCurrency(booking.totalAmount)}`, 140, finalY);
+    doc.text(`Payment Status: ${booking.paymentStatus}`, 140, finalY + 7);
+
+    // Footer
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'italic');
+    doc.text('Thank you for choosing StayFlow!', 105, 280, { align: 'center' });
+
+    doc.save(`Invoice_${booking.customerName.replace(/\s+/g, '_')}_${booking.id.slice(0, 8)}.pdf`);
   };
 
   const handleAddMaintenance = (e: React.FormEvent<HTMLFormElement>) => {
@@ -238,6 +353,24 @@ export default function App() {
             label="Revenue" 
             active={activeTab === 'revenue'} 
             onClick={() => setActiveTab('revenue')} 
+          />
+          <SidebarItem 
+            icon={<Users size={20} />} 
+            label="Customers" 
+            active={activeTab === 'customers'} 
+            onClick={() => setActiveTab('customers')} 
+          />
+          <SidebarItem 
+            icon={<CalendarDays size={20} />} 
+            label="Bookings" 
+            active={activeTab === 'bookings'} 
+            onClick={() => setActiveTab('bookings')} 
+          />
+          <SidebarItem 
+            icon={<FileText size={20} />} 
+            label="Fees Collection" 
+            active={activeTab === 'fees'} 
+            onClick={() => setActiveTab('fees')} 
           />
         </nav>
         
@@ -363,7 +496,7 @@ export default function App() {
                   <div className="p-6 border-b border-slate-100">
                     <h2 className="font-semibold text-slate-900">Arrears (Unpaid)</h2>
                   </div>
-                  <div className="divide-y divide-slate-100 max-h-[500px] overflow-y-auto">
+                  <div className="divide-y divide-slate-100 max-h-[300px] overflow-y-auto">
                     {stats.arrears.map(booking => {
                       const room = rooms.find(r => r.id === booking.roomId);
                       return (
@@ -399,6 +532,47 @@ export default function App() {
                     {stats.arrears.length === 0 && (
                       <div className="p-8 text-center text-slate-400 italic">
                         No outstanding payments.
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="p-6 border-t border-b border-slate-100 bg-slate-50/50">
+                    <h2 className="font-semibold text-slate-900">Recent Paid Bookings</h2>
+                  </div>
+                  <div className="divide-y divide-slate-100 max-h-[300px] overflow-y-auto">
+                    {bookings
+                      .filter(b => b.paymentStatus === PaymentStatus.PAID)
+                      .sort((a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime())
+                      .slice(0, 5)
+                      .map(booking => {
+                        const room = rooms.find(r => r.id === booking.roomId);
+                        return (
+                          <div key={booking.id} className="p-4 hover:bg-slate-50 transition-colors">
+                            <div className="flex justify-between items-start mb-2">
+                              <div>
+                                <p className="font-medium text-slate-900">{booking.customerName}</p>
+                                <p className="text-xs text-slate-500">Room {room?.roomNumber || 'N/A'}</p>
+                              </div>
+                              <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-emerald-100 text-emerald-700">
+                                Paid
+                              </span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <p className="text-sm font-bold text-slate-900">{formatCurrency(booking.totalAmount)}</p>
+                              <button 
+                                onClick={() => generateInvoice(booking)}
+                                className="flex items-center gap-1.5 text-xs font-semibold text-indigo-600 hover:text-indigo-700 transition-colors"
+                              >
+                                <FileText size={14} />
+                                Invoice
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    {bookings.filter(b => b.paymentStatus === PaymentStatus.PAID).length === 0 && (
+                      <div className="p-8 text-center text-slate-400 italic">
+                        No paid bookings yet.
                       </div>
                     )}
                   </div>
@@ -726,6 +900,285 @@ export default function App() {
               </div>
             </motion.div>
           )}
+
+          {activeTab === 'customers' && (
+            <motion.div
+              key="customers"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              className="space-y-6"
+            >
+              <header className="flex justify-between items-center">
+                <div>
+                  <h1 className="text-2xl font-bold text-slate-900">Customers</h1>
+                  <p className="text-slate-500">Manage your guest database.</p>
+                </div>
+                <button 
+                  onClick={() => {
+                    setSelectedCustomer(null);
+                    setIsCustomerModalOpen(true);
+                  }}
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-medium flex items-center gap-2 transition-colors"
+                >
+                  <Plus size={20} />
+                  Add Customer
+                </button>
+              </header>
+
+              <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-slate-50 border-b border-slate-200">
+                      <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Name</th>
+                      <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Phone</th>
+                      <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Address</th>
+                      <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {customers.map(customer => (
+                      <tr key={customer.id} className="hover:bg-slate-50 transition-colors">
+                        <td className="px-6 py-4 font-bold text-slate-900">{customer.name}</td>
+                        <td className="px-6 py-4 text-slate-600">{customer.phone}</td>
+                        <td className="px-6 py-4 text-slate-600 max-w-xs truncate">{customer.address}</td>
+                        <td className="px-6 py-4 text-right">
+                          <div className="flex justify-end gap-2">
+                            <button 
+                              onClick={() => {
+                                setSelectedCustomer(customer);
+                                setIsCustomerModalOpen(true);
+                              }}
+                              className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                            >
+                              <Edit2 size={16} />
+                            </button>
+                            <button 
+                              onClick={() => {
+                                if (confirm('Delete this customer?')) {
+                                  customerRepo.delete(customer.id);
+                                  refreshData();
+                                }
+                              }}
+                              className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                    {customers.length === 0 && (
+                      <tr>
+                        <td colSpan={4} className="px-6 py-12 text-center text-slate-400 italic">
+                          No customers found.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </motion.div>
+          )}
+          {activeTab === 'bookings' && (
+            <motion.div
+              key="bookings"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              className="space-y-6"
+            >
+              <header>
+                <h1 className="text-2xl font-bold text-slate-900">All Bookings</h1>
+                <p className="text-slate-500">History of all guest stays and payments.</p>
+              </header>
+
+              <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-slate-50 border-b border-slate-200">
+                      <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Guest</th>
+                      <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Room</th>
+                      <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Dates</th>
+                      <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Amount</th>
+                      <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Status</th>
+                      <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {bookings.sort((a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime()).map(booking => {
+                      const room = rooms.find(r => r.id === booking.roomId);
+                      return (
+                        <tr key={booking.id} className="hover:bg-slate-50 transition-colors">
+                          <td className="px-6 py-4">
+                            <div className="font-bold text-slate-900">{booking.customerName}</div>
+                            <div className="text-xs text-slate-500">{booking.customerPhone}</div>
+                          </td>
+                          <td className="px-6 py-4 text-slate-600">Room {room?.roomNumber || 'N/A'}</td>
+                          <td className="px-6 py-4 text-slate-600">
+                            <div className="text-sm">{formatDate(booking.startDate)}</div>
+                            <div className="text-[10px] text-slate-400">to {formatDate(booking.endDate)}</div>
+                          </td>
+                          <td className="px-6 py-4 font-semibold text-slate-900">{formatCurrency(booking.totalAmount)}</td>
+                          <td className="px-6 py-4">
+                            <span className={`px-2 py-1 rounded text-xs font-bold uppercase ${
+                              booking.paymentStatus === PaymentStatus.PAID ? 'bg-emerald-100 text-emerald-700' : 
+                              booking.paymentStatus === PaymentStatus.UNPAID ? 'bg-rose-100 text-rose-700' : 'bg-amber-100 text-amber-700'
+                            }`}>
+                              {booking.paymentStatus}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 text-right">
+                            <div className="flex justify-end gap-2">
+                              {booking.paymentStatus === PaymentStatus.PAID && (
+                                <button 
+                                  onClick={() => generateInvoice(booking)}
+                                  className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                                  title="Download Invoice"
+                                >
+                                  <FileText size={18} />
+                                </button>
+                              )}
+                              <button 
+                                onClick={() => {
+                                  if (confirm('Delete this booking?')) {
+                                    bookingRepo.delete(booking.id);
+                                    refreshData();
+                                  }
+                                }}
+                                className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                              >
+                                <Trash2 size={18} />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                    {bookings.length === 0 && (
+                      <tr>
+                        <td colSpan={6} className="px-6 py-12 text-center text-slate-400 italic">
+                          No bookings found.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </motion.div>
+          )}
+          {activeTab === 'fees' && (
+            <motion.div
+              key="fees"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              className="space-y-6"
+            >
+              <header className="flex justify-between items-end">
+                <div>
+                  <h1 className="text-2xl font-bold text-slate-900">Fees Collection</h1>
+                  <p className="text-slate-500">Manage unpaid fees and generate invoices.</p>
+                </div>
+                <div className="flex gap-4">
+                  <div className="flex flex-col gap-1">
+                    <label className="text-xs font-semibold text-slate-500 uppercase">From</label>
+                    <input 
+                      type="date" 
+                      value={feeFilterStart}
+                      onChange={(e) => setFeeFilterStart(e.target.value)}
+                      className="px-3 py-2 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-xs font-semibold text-slate-500 uppercase">To</label>
+                    <input 
+                      type="date" 
+                      value={feeFilterEnd}
+                      onChange={(e) => setFeeFilterEnd(e.target.value)}
+                      className="px-3 py-2 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+                    />
+                  </div>
+                </div>
+              </header>
+
+              <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-slate-50 border-b border-slate-200">
+                      <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Guest</th>
+                      <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Room</th>
+                      <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Dates</th>
+                      <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Amount</th>
+                      <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Status</th>
+                      <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {bookings
+                      .filter(b => {
+                        const matchesStatus = b.paymentStatus !== PaymentStatus.PAID;
+                        const date = new Date(b.startDate);
+                        const start = feeFilterStart ? new Date(feeFilterStart) : null;
+                        const end = feeFilterEnd ? new Date(feeFilterEnd) : null;
+                        
+                        const matchesDate = (!start || date >= start) && (!end || date <= end);
+                        return matchesStatus && matchesDate;
+                      })
+                      .map(booking => {
+                        const room = rooms.find(r => r.id === booking.roomId);
+                        return (
+                          <tr key={booking.id} className="hover:bg-slate-50 transition-colors">
+                            <td className="px-6 py-4">
+                              <div className="font-bold text-slate-900">{booking.customerName}</div>
+                              <div className="text-xs text-slate-500">{booking.customerPhone}</div>
+                            </td>
+                            <td className="px-6 py-4 text-slate-600">Room {room?.roomNumber || 'N/A'}</td>
+                            <td className="px-6 py-4 text-slate-600">
+                              <div className="text-sm">{formatDate(booking.startDate)}</div>
+                              <div className="text-[10px] text-slate-400">to {formatDate(booking.endDate)}</div>
+                            </td>
+                            <td className="px-6 py-4 font-semibold text-slate-900">{formatCurrency(booking.totalAmount)}</td>
+                            <td className="px-6 py-4">
+                              <span className={`px-2 py-1 rounded text-xs font-bold uppercase ${
+                                booking.paymentStatus === PaymentStatus.UNPAID ? 'bg-rose-100 text-rose-700' : 'bg-amber-100 text-amber-700'
+                              }`}>
+                                {booking.paymentStatus}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 text-right">
+                              <div className="flex justify-end gap-2">
+                                <button 
+                                  onClick={() => handleMarkAsPaid(booking.id)}
+                                  className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-lg text-xs font-semibold transition-colors"
+                                >
+                                  <CheckCircle2 size={14} />
+                                  Mark Paid
+                                </button>
+                                <button 
+                                  onClick={() => generateInvoice(booking)}
+                                  className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                                  title="Download Invoice"
+                                >
+                                  <FileText size={18} />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    {bookings.filter(b => b.paymentStatus !== PaymentStatus.PAID).length === 0 && (
+                      <tr>
+                        <td colSpan={6} className="px-6 py-12 text-center text-slate-400 italic">
+                          No pending fees found.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </motion.div>
+          )}
         </AnimatePresence>
       </main>
 
@@ -882,25 +1335,24 @@ export default function App() {
         onClose={() => setIsBookingModalOpen(false)} 
         title={`New Booking - Room ${selectedBookingRoom?.roomNumber}`}
       >
-        <form onSubmit={handleAddBooking} className="space-y-4">
+        <form onSubmit={handleAddBookingSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Customer Name</label>
-            <input 
-              name="customerName" 
+            <label className="block text-sm font-medium text-slate-700 mb-1">Select Customer</label>
+            <select 
+              name="customerId" 
               required 
-              className="w-full px-4 py-2 rounded-lg border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
-              placeholder="Full Name"
-            />
+              className="w-full px-4 py-2 rounded-lg border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none bg-white"
+            >
+              <option value="">Select a customer</option>
+              {customers.map(c => (
+                <option key={c.id} value={c.id}>{c.name} ({c.phone})</option>
+              ))}
+            </select>
+            <p className="mt-1 text-xs text-slate-500">
+              Can't find customer? <button type="button" onClick={() => { setIsBookingModalOpen(false); setIsCustomerModalOpen(true); }} className="text-indigo-600 hover:underline">Add new customer</button>
+            </p>
           </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">WhatsApp Number</label>
-            <input 
-              name="customerPhone" 
-              required 
-              className="w-full px-4 py-2 rounded-lg border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
-              placeholder="e.g. 60123456789"
-            />
-          </div>
+          
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Check-in Date</label>
@@ -1032,6 +1484,71 @@ export default function App() {
               className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition-colors"
             >
               Save Log
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      <Modal 
+        isOpen={isCustomerModalOpen} 
+        onClose={() => { setIsCustomerModalOpen(false); setSelectedCustomer(null); }} 
+        title={selectedCustomer ? "Edit Customer" : "Add New Customer"}
+      >
+        <form onSubmit={handleAddCustomer} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Customer Name</label>
+            <input 
+              name="name" 
+              defaultValue={selectedCustomer?.name}
+              required 
+              className="w-full px-4 py-2 rounded-lg border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
+              placeholder="e.g. John Doe"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Phone Number</label>
+            <input 
+              name="phone" 
+              defaultValue={selectedCustomer?.phone}
+              required 
+              className="w-full px-4 py-2 rounded-lg border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
+              placeholder="e.g. +60123456789"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Email (Optional)</label>
+            <input 
+              name="email" 
+              type="email"
+              defaultValue={selectedCustomer?.email}
+              className="w-full px-4 py-2 rounded-lg border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
+              placeholder="e.g. john@example.com"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Address</label>
+            <textarea 
+              name="address" 
+              defaultValue={selectedCustomer?.address}
+              required 
+              rows={3}
+              className="w-full px-4 py-2 rounded-lg border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
+              placeholder="Full address here..."
+            />
+          </div>
+          <div className="flex justify-end gap-3 pt-4">
+            <button 
+              type="button" 
+              onClick={() => { setIsCustomerModalOpen(false); setSelectedCustomer(null); }}
+              className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg font-medium transition-colors"
+            >
+              Cancel
+            </button>
+            <button 
+              type="submit"
+              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition-colors"
+            >
+              {selectedCustomer ? "Update Customer" : "Save Customer"}
             </button>
           </div>
         </form>
