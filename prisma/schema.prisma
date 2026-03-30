@@ -1,0 +1,239 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Enums ────────────────────────────────────────────────────────────────────
+
+enum Role {
+  SUPER_ADMIN
+  ADMIN
+  MANAGER
+  VIEWER
+}
+
+enum PropertyType {
+  APARTMENT
+  CONDO
+  HOUSE
+  STUDIO
+  OFFICE
+}
+
+enum RoomStatus {
+  AVAILABLE
+  OCCUPIED
+  MAINTENANCE
+  RESERVED
+}
+
+enum BookingStatus {
+  ACTIVE
+  EXPIRED
+  TERMINATED
+  PENDING
+}
+
+enum MaintenanceStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+}
+
+enum FileCategory {
+  DOCUMENT
+  RECEIPT
+  PHOTO
+}
+
+// ─── Auth ─────────────────────────────────────────────────────────────────────
+
+model User {
+  id                  String    @id @default(uuid())
+  email               String    @unique
+  passwordHash        String
+  name                String
+  role                Role      @default(VIEWER)
+  isActive            Boolean   @default(true)
+  failedLoginAttempts Int       @default(0)
+  lockedUntil         DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  refreshTokens RefreshToken[]
+  auditLogs     AuditLog[]
+  uploadedFiles File[]
+
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  tokenHash String   @unique
+  userId    String
+  expiresAt DateTime
+  isRevoked Boolean  @default(false)
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("refresh_tokens")
+}
+
+model PasswordResetToken {
+  id        String   @id @default(uuid())
+  email     String
+  tokenHash String   @unique
+  expiresAt DateTime
+  isUsed    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@map("password_reset_tokens")
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  userId     String
+  action     String
+  resource   String
+  resourceId String?
+  ipAddress  String?
+  metadata   Json?
+  createdAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("audit_logs")
+}
+
+// ─── Property Management ──────────────────────────────────────────────────────
+
+model Property {
+  id        String       @id @default(uuid())
+  name      String
+  address   String
+  city      String
+  type      PropertyType @default(APARTMENT)
+  units     Int          @default(1)
+  isActive  Boolean      @default(true)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  rooms Room[]
+  files File[]
+
+  @@map("properties")
+}
+
+model Room {
+  id         String     @id @default(uuid())
+  propertyId String
+  number     String
+  floor      Int?
+  type       String
+  rentAmount Float
+  status     RoomStatus @default(AVAILABLE)
+  notes      String?
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+
+  property         Property          @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  bookings         Booking[]
+  maintenanceLogs  MaintenanceLog[]
+  files            File[]
+
+  @@unique([propertyId, number])
+  @@map("rooms")
+}
+
+model Customer {
+  id             String   @id @default(uuid())
+  customerNo     Int      @unique @default(autoincrement())
+  name           String
+  phoneLocal     String
+  phoneOther     String?
+  icPassport     String   @unique
+  email          String?
+  currentAddress String
+  wechatId       String?
+  whatsappNumber String?
+  remark         String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  bookings Booking[]
+  files    File[]
+
+  @@map("customers")
+}
+
+model Booking {
+  id          String        @id @default(uuid())
+  roomId      String
+  customerId  String
+  startDate   DateTime
+  endDate     DateTime
+  rentAmount  Float
+  deposit     Float         @default(0)
+  status      BookingStatus @default(ACTIVE)
+  notes       String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  room     Room     @relation(fields: [roomId], references: [id], onDelete: Restrict)
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  files    File[]
+
+  @@map("bookings")
+}
+
+model MaintenanceLog {
+  id          String            @id @default(uuid())
+  roomId      String
+  title       String
+  description String
+  status      MaintenanceStatus @default(OPEN)
+  priority    String            @default("NORMAL")
+  cost        Float?
+  resolvedAt  DateTime?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  room  Room   @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  files File[]
+
+  @@map("maintenance_logs")
+}
+
+// ─── File Storage ─────────────────────────────────────────────────────────────
+
+model File {
+  id           String       @id @default(uuid())
+  originalName String
+  storedName   String       @unique
+  mimeType     String
+  size         Int
+  category     FileCategory @default(DOCUMENT)
+  uploadedById String
+  propertyId   String?
+  roomId       String?
+  bookingId    String?
+  customerId   String?
+  maintenanceId String?
+  createdAt    DateTime     @default(now())
+
+  uploadedBy    User            @relation(fields: [uploadedById], references: [id])
+  property      Property?       @relation(fields: [propertyId], references: [id])
+  room          Room?           @relation(fields: [roomId], references: [id])
+  booking       Booking?        @relation(fields: [bookingId], references: [id])
+  customer      Customer?       @relation(fields: [customerId], references: [id])
+  maintenanceLog MaintenanceLog? @relation(fields: [maintenanceId], references: [id])
+
+  @@map("files")
+}

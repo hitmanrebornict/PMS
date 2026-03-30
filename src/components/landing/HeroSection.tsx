@@ -57,11 +57,11 @@ export default function HeroSection() {
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 1, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
-            className="lg:col-span-5 hidden lg:block"
+            className="lg:col-span-5"
           >
-            <div className="relative">
+            <div className="relative pb-6 lg:pb-0">
               <div
-                className="w-full aspect-[4/5] rounded-[0.5rem] overflow-hidden"
+                className="w-full aspect-[16/9] lg:aspect-[4/5] rounded-[0.5rem] overflow-hidden"
                 style={{
                   boxShadow: '0 10px 30px rgba(48, 51, 47, 0.04), 0 4px 8px rgba(48, 51, 47, 0.02)',
                 }}
@@ -72,8 +72,10 @@ export default function HeroSection() {
                   className="w-full h-full object-cover"
                 />
               </div>
+
+              {/* Stats card — shown on desktop only to avoid overflow on mobile */}
               <div
-                className="absolute -bottom-6 -left-6 w-2/3 rounded-[0.5rem] bg-surface-lowest p-6"
+                className="hidden lg:block absolute -bottom-6 -left-6 w-2/3 rounded-[0.5rem] bg-surface-lowest p-6"
                 style={{
                   boxShadow: '0 10px 30px rgba(48, 51, 47, 0.04), 0 4px 8px rgba(48, 51, 47, 0.02)',
                 }}
@@ -94,6 +96,24 @@ export default function HeroSection() {
                     </span>
                   ))}
                 </div>
+              </div>
+
+              {/* Mobile trust badges — shown below image on small screens */}
+              <div className="lg:hidden mt-4 grid grid-cols-3 gap-3">
+                {[
+                  { value: '100+', label: 'Properties' },
+                  { value: '24/7', label: 'Support' },
+                  { value: '4.9★', label: 'Rating' },
+                ].map((stat) => (
+                  <div
+                    key={stat.label}
+                    className="bg-surface-lowest rounded-[0.5rem] py-3 px-2 text-center"
+                    style={{ boxShadow: '0 4px 12px rgba(48, 51, 47, 0.04)' }}
+                  >
+                    <div className="font-display font-700 text-base text-primary">{stat.value}</div>
+                    <div className="font-body text-xs text-on-surface/50 mt-0.5">{stat.label}</div>
+                  </div>
+                ))}
               </div>
             </div>
           </motion.div>

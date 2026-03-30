@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "WebFetch(domain:unsplash.com)",
+      "WebFetch(domain:api.unsplash.com)",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(cp \"D:/PythonTesting/PMS/cleaning.png\" \"D:/PythonTesting/PMS/.claude/worktrees/kind-wilbur/public/cleaning.png\")",
+      "Bash(cp \"D:/PythonTesting/PMS/maintenance.png\" \"D:/PythonTesting/PMS/.claude/worktrees/kind-wilbur/public/maintenance.png\")",
+      "Bash(python generate_plan.py)",
+      "Bash(pip install:*)",
+      "Bash(npm install:*)",
+      "Bash(npx prisma:*)",
+      "Bash(docker run:*)",
+      "Bash(curl -s -X POST http://localhost:5000/api/auth/login -H \"Content-Type: application/json\" -d '{\"\"email\"\":\"\"admin@versahome.com.my\"\",\"\"password\"\":\"\"Admin@VersaHome2026!\"\"}')",
+      "Bash(curl -s -X POST http://localhost:5000/api/auth/login -H \"Content-Type: application/json\" -d \"{\"\"email\"\":\"\"admin@versahome.com.my\"\",\"\"password\"\":\"\"Admin@VersaHome2026!\"\"}\")",
+      "Bash(npx tsc:*)",
+      "Bash(xargs wc:*)"
+    ]
+  }
+}

@@ -17,12 +17,12 @@ const serviceKeys = [
   {
     key: 'cleaning' as const,
     icon: Sparkles,
-    img: 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=500&h=300&fit=crop&q=80',
+    img: '/cleaning.png',
   },
   {
     key: 'maintenance' as const,
     icon: Wrench,
-    img: 'https://images.unsplash.com/photo-1621905251189-08b45d6a269e?w=500&h=300&fit=crop&q=80',
+    img: '/maintenance.png',
   },
 ] as const;
 
