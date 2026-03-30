@@ -28,10 +28,19 @@ export interface Room {
 
 export interface Customer {
   id: string;
-  name: string;
-  address: string;
-  phone: string;
-  email?: string;
+  customerNo?: number;       // auto-increment display number
+  name: string;              // English name
+  phoneLocal: string;        // local H/P number
+  phoneOther?: string;       // overseas/other country H/P (optional)
+  icPassport: string;        // IC or passport number
+  email?: string;            // optional
+  currentAddress: string;    // current address
+  wechatId?: string;         // optional
+  whatsappNumber?: string;   // optional
+  remark?: string;           // optional
+  // legacy field kept for backward compat with bookings
+  phone?: string;
+  address?: string;
 }
 
 export interface Booking {

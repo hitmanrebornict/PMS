@@ -74,7 +74,7 @@ export default function Navbar() {
           </button>
 
           <Link
-            to="/manage"
+            to="/login"
             className="bg-primary text-on-primary px-5 py-2.5 rounded-[0.375rem] text-sm font-medium transition-opacity hover:opacity-90 cursor-pointer whitespace-nowrap"
           >
             {t(translations.cta.manage)}
@@ -119,7 +119,7 @@ export default function Navbar() {
                 </button>
               ))}
               <Link
-                to="/manage"
+                to="/login"
                 className="bg-primary text-on-primary px-5 py-2.5 rounded-[0.375rem] text-sm font-medium text-center transition-opacity hover:opacity-90"
               >
                 {t(translations.cta.manage)}

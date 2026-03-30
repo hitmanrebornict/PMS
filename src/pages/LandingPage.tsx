@@ -1,4 +1,5 @@
 import { LanguageProvider } from '../i18n/LanguageContext';
+import FloatingContact from '../components/landing/FloatingContact';
 import Navbar from '../components/landing/Navbar';
 import HeroSection from '../components/landing/HeroSection';
 import ServicesSection from '../components/landing/ServicesSection';
@@ -20,6 +21,7 @@ export default function LandingPage() {
         <CTASection />
         <ContactSection />
         <Footer />
+        <FloatingContact />
       </div>
     </LanguageProvider>
   );
