@@ -1,0 +1,30 @@
+services:
+  app:
+    build: .
+    ports:
+      - "127.0.0.1:5000:5000"
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://stayflow:${DB_PASSWORD}@db:5432/stayflow
+    volumes:
+      - uploads:/app/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: stayflow
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: stayflow
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U stayflow"]
+      interval: 5s
+      retries: 3
+
+volumes:
+  pgdata:
+  uploads:
