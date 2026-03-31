@@ -68,7 +68,7 @@ app.get('/api/health', (_req, res) => {
 // ─── Serve React Frontend (Production) ───────────────────────────────────────
 
 if (isProd) {
-  const distPath = path.join(__dirname, '..', 'dist');
+  const distPath = path.join(__dirname, '..');
   app.use(express.static(distPath));
   app.get('*', (_req, res) => {
     res.sendFile(path.join(distPath, 'index.html'));
