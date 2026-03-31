@@ -15,6 +15,9 @@ export default function Footer() {
               <span className="font-display font-700 text-xl text-surface tracking-tight">
                 VersaHome
               </span>
+              <span className="font-body text-xs text-surface/40 ml-2">
+                202601004828 (1666926-V)
+              </span>
             </div>
             <p className="mt-2 font-body text-sm text-surface/50 max-w-sm">
               {t(translations.footer.tagline)}
@@ -47,7 +50,7 @@ export default function Footer() {
           className="mt-12 pt-8 font-body text-xs text-surface/30"
           style={{ borderTop: '1px solid rgba(251, 249, 246, 0.08)' }}
         >
-          &copy; {new Date().getFullYear()} VersaHome. {t(translations.footer.copyright)}.
+          &copy; {new Date().getFullYear()} Versa Home Sdn Bhd 202601004828 (1666926-V). {t(translations.footer.copyright)}.
         </div>
       </div>
     </footer>

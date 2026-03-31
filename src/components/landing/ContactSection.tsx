@@ -155,9 +155,7 @@ export default function ContactSection() {
               className="flex items-center gap-3 sm:gap-4 w-full text-left group cursor-pointer min-w-0"
             >
               <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-[0.375rem] bg-[#ff2442]/10 flex items-center justify-center shrink-0">
-                <svg viewBox="0 0 24 24" className="w-5 h-5 text-[#ff2442]" fill="currentColor">
-                  <path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm3.636 5.818h-1.637c-.182 0-.364.182-.364.364v1.636h2.001l-.182 2.001h-1.818v5.454h-2.182v-5.454H9.636v-2.001h1.818V8.182c0-1.636 1.091-2.727 2.727-2.727h1.455v2.363z"/>
-                </svg>
+                <img src="/xhs-logo.png" alt="RedNote" className="w-5 h-5 object-contain" />
               </div>
               <div className="min-w-0">
                 <div className="font-body text-xs text-on-surface/50">{t(c.xiaohongshu.title)}</div>
