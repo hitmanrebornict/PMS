@@ -7,12 +7,12 @@ const serviceKeys = [
   {
     key: 'rental' as const,
     icon: Home,
-    img: 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=500&h=300&fit=crop&q=80',
+    img: '/services-rental.jpg',
   },
   {
     key: 'furnishing' as const,
     icon: Sofa,
-    img: 'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=500&h=300&fit=crop&q=80',
+    img: '/services-furnishing.jpg',
   },
   {
     key: 'cleaning' as const,

@@ -67,7 +67,7 @@ export default function HeroSection() {
                 }}
               >
                 <img
-                  src="https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=600&h=750&fit=crop&q=80"
+                  src="/hero-apartment.jpg"
                   alt="Modern furnished apartment"
                   className="w-full h-full object-cover"
                 />

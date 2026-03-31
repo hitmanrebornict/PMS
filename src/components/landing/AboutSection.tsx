@@ -26,7 +26,7 @@ export default function AboutSection() {
                 }}
               >
                 <img
-                  src="https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=500&h=667&fit=crop&q=80"
+                  src="/about-living-space.jpg"
                   alt="Clean organized living space"
                   className="w-full h-full object-cover"
                 />
@@ -39,7 +39,7 @@ export default function AboutSection() {
                 }}
               >
                 <img
-                  src="https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=400&h=300&fit=crop&q=80"
+                  src="/about-furnished-room.jpg"
                   alt="Beautifully furnished room"
                   className="w-full h-full object-cover"
                 />
