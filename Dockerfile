@@ -11,6 +11,7 @@ RUN npx esbuild prisma/seed.ts --bundle --platform=node --format=esm --outfile=p
 
 # Stage 2: Production
 FROM node:22-alpine
+RUN apk add --no-cache openssl
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci --omit=dev
