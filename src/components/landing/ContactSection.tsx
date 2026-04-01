@@ -264,7 +264,7 @@ export default function ContactSection() {
               }}
             >
               <img
-                src="/xhs-icon.png"
+                src="/xhs-qr.png"
                 alt="XHS RedNote QR Code"
                 className="w-28 h-28 sm:w-40 sm:h-40 mx-auto rounded-[0.25rem] object-contain"
               />
