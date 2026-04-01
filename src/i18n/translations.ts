@@ -146,12 +146,12 @@ const translations = {
     },
     phone: {
       title: { zh: '商务电话', en: 'Business Contact' },
-      value: '012 828 7799',
+      value: '+6011 3303 3319 & +601 2828 7799',
       link: 'tel:+60128287799',
     },
     whatsapp: {
       title: 'WhatsApp',
-      value: '011 3303 3319',
+      value: '+6011 3303 3319 & +601 2828 7799',
       link: 'https://wa.me/601133033319',
     },
     email: {
