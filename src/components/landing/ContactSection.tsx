@@ -155,7 +155,7 @@ export default function ContactSection() {
               className="flex items-center gap-3 sm:gap-4 w-full text-left group cursor-pointer min-w-0"
             >
               <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-[0.375rem] bg-[#ff2442]/10 flex items-center justify-center shrink-0">
-                <img src="/xhs-logo.png" alt="RedNote" className="w-5 h-5 object-contain" />
+                <img src="/xhs-icon.png" alt="RedNote" className="w-5 h-5 object-contain" />
               </div>
               <div className="min-w-0">
                 <div className="font-body text-xs text-on-surface/50">{t(c.xiaohongshu.title)}</div>
@@ -264,7 +264,7 @@ export default function ContactSection() {
               }}
             >
               <img
-                src="/xhs-qr.png"
+                src="/xhs-icon.png"
                 alt="XHS RedNote QR Code"
                 className="w-28 h-28 sm:w-40 sm:h-40 mx-auto rounded-[0.25rem] object-contain"
               />
