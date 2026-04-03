@@ -10,6 +10,10 @@ import { fileURLToPath } from 'url';
 import authRouter from './routes/auth.js';
 import uploadRouter from './routes/upload.js';
 import remindersRouter from './routes/reminders.js';
+import bookingsRouter from './routes/bookings.js';
+import inventoryRouter from './routes/inventory.js';
+import assetsRouter from './routes/assets.js';
+import customersRouter from './routes/customers.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -59,6 +63,10 @@ app.use('/api/auth/forgot-password', authLimiter);
 app.use('/api/auth', authRouter);
 app.use('/api/upload', uploadRouter);
 app.use('/api/reminders', remindersRouter);
+app.use('/api/bookings', bookingsRouter);
+app.use('/api/inventory', inventoryRouter);
+app.use('/api/assets', assetsRouter);
+app.use('/api/customers', customersRouter);
 
 // Health check
 app.get('/api/health', (_req, res) => {

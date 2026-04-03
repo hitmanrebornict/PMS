@@ -39,7 +39,7 @@ export function CustomerModal({ isOpen, onClose, onSubmit, selectedCustomer }: C
             </label>
             <input
               name="phoneLocal"
-              defaultValue={selectedCustomer?.phoneLocal ?? selectedCustomer?.phone}
+              defaultValue={selectedCustomer?.phoneLocal}
               required
               className="w-full px-4 py-2 rounded-lg border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
               placeholder="e.g. 0123456789"
@@ -93,7 +93,7 @@ export function CustomerModal({ isOpen, onClose, onSubmit, selectedCustomer }: C
           </label>
           <textarea
             name="currentAddress"
-            defaultValue={selectedCustomer?.currentAddress ?? selectedCustomer?.address}
+            defaultValue={selectedCustomer?.currentAddress}
             required
             rows={2}
             className="w-full px-4 py-2 rounded-lg border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none resize-none"

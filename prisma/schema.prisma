@@ -32,6 +32,20 @@ enum RoomStatus {
   RESERVED
 }
 
+enum UnitType {
+  STUDIO
+  ONE_BEDROOM
+  TWO_BEDROOM
+  BUNGALOW
+  OTHER
+}
+
+enum AssetStatus {
+  VACANT
+  OCCUPIED
+  MAINTENANCE
+}
+
 enum BookingStatus {
   ACTIVE
   EXPIRED
@@ -49,6 +63,34 @@ enum FileCategory {
   DOCUMENT
   RECEIPT
   PHOTO
+}
+
+enum BillingCycle {
+  DAILY
+  FIXED_TERM
+  MONTHLY
+}
+
+enum LeaseStatus {
+  UPCOMING
+  ACTIVE
+  TERMINATED
+  COMPLETED
+}
+
+enum InvoiceStatus {
+  PENDING
+  PAID
+  OVERDUE
+  CANCELLED
+}
+
+enum DepositStatus {
+  PENDING
+  HELD
+  PARTIALLY_REFUNDED
+  REFUNDED
+  FORFEITED
 }
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
@@ -169,6 +211,7 @@ model Customer {
   updatedAt      DateTime @updatedAt
 
   bookings Booking[]
+  leases   LeaseAgreement[]
   files    File[]
 
   @@map("customers")
@@ -210,6 +253,108 @@ model MaintenanceLog {
   files File[]
 
   @@map("maintenance_logs")
+}
+
+// ─── Asset Management ─────────────────────────────────────────────────────
+
+model MasterProperty {
+  id        String   @id @default(uuid())
+  name      String
+  address   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  units Unit[]
+
+  @@map("master_properties")
+}
+
+model Unit {
+  id                   String      @id @default(uuid())
+  propertyId           String
+  unitNumber           String
+  type                 UnitType    @default(OTHER)
+  suggestedRentalPrice Decimal     @db.Decimal(10, 2)
+  status               AssetStatus @default(VACANT)
+  createdAt            DateTime    @default(now())
+  updatedAt            DateTime    @updatedAt
+
+  property MasterProperty  @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  leases   LeaseAgreement[]
+
+  @@unique([propertyId, unitNumber])
+  @@map("units")
+}
+
+model Carpark {
+  id                   String      @id @default(uuid())
+  carparkNumber        String      @unique
+  suggestedRentalPrice Decimal     @db.Decimal(10, 2)
+  status               AssetStatus @default(VACANT)
+  createdAt            DateTime    @default(now())
+  updatedAt            DateTime    @updatedAt
+
+  leases LeaseAgreement[]
+
+  @@map("carparks")
+}
+
+// ─── Lease Management ─────────────────────────────────────────────────────
+
+model LeaseAgreement {
+  id           String       @id @default(uuid())
+  customerId   String
+  unitId       String?
+  carparkId    String?
+  startDate    DateTime
+  endDate      DateTime
+  billingCycle BillingCycle
+  unitPrice    Decimal      @db.Decimal(10, 2)
+  totalAmount  Decimal      @db.Decimal(10, 2)
+  status       LeaseStatus  @default(UPCOMING)
+  notes        String?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  customer Customer      @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  unit     Unit?          @relation(fields: [unitId], references: [id], onDelete: Restrict)
+  carpark  Carpark?       @relation(fields: [carparkId], references: [id], onDelete: Restrict)
+  deposit  LeaseDeposit?
+  invoices Invoice[]
+
+  @@map("lease_agreements")
+}
+
+model LeaseDeposit {
+  id         String        @id @default(uuid())
+  leaseId    String        @unique
+  amount     Decimal       @db.Decimal(10, 2)
+  status     DepositStatus @default(PENDING)
+  paidAt     DateTime?
+  refundedAt DateTime?
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+
+  lease LeaseAgreement @relation(fields: [leaseId], references: [id], onDelete: Cascade)
+
+  @@map("lease_deposits")
+}
+
+model Invoice {
+  id          String        @id @default(uuid())
+  leaseId     String
+  periodStart DateTime
+  periodEnd   DateTime
+  amount      Decimal       @db.Decimal(10, 2)
+  status      InvoiceStatus @default(PENDING)
+  dueDate     DateTime
+  paidAt      DateTime?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  lease LeaseAgreement @relation(fields: [leaseId], references: [id], onDelete: Cascade)
+
+  @@map("invoices")
 }
 
 // ─── File Storage ─────────────────────────────────────────────────────────────
