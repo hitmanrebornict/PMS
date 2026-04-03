@@ -1,65 +1,105 @@
-export enum BillingCycle {
-  DAILY = 'Daily',
-  WEEKLY = 'Weekly',
-  MONTHLY = 'Monthly'
+// ─── Asset Management ────────────────────────────────────────────────────────
+
+export enum UnitType {
+  STUDIO = 'STUDIO',
+  ONE_BEDROOM = 'ONE_BEDROOM',
+  TWO_BEDROOM = 'TWO_BEDROOM',
+  BUNGALOW = 'BUNGALOW',
+  OTHER = 'OTHER',
 }
 
-export enum PaymentStatus {
-  PAID = 'Paid',
-  UNPAID = 'Unpaid',
-  PARTIAL = 'Partial'
+export enum AssetStatus {
+  VACANT = 'VACANT',
+  OCCUPIED = 'OCCUPIED',
+  MAINTENANCE = 'MAINTENANCE',
 }
 
-export interface Property {
+export interface MasterProperty {
   id: string;
   name: string;
-  address: string;
-  totalRooms: number;
+  address?: string;
+  unitCount?: number;
 }
 
-export interface Room {
+export interface Unit {
   id: string;
   propertyId: string;
-  roomNumber: string;
-  type: string;
-  baseRate: number;
-  baseRateType: BillingCycle;
+  propertyName?: string;
+  unitNumber: string;
+  type: UnitType;
+  suggestedRentalPrice: number;
+  status: AssetStatus;
 }
+
+export interface Carpark {
+  id: string;
+  carparkNumber: string;
+  suggestedRentalPrice: number;
+  status: AssetStatus;
+}
+
+// ─── Customer ────────────────────────────────────────────────────────────────
 
 export interface Customer {
   id: string;
-  customerNo?: number;       // auto-increment display number
-  name: string;              // English name
-  phoneLocal: string;        // local H/P number
-  phoneOther?: string;       // overseas/other country H/P (optional)
-  icPassport: string;        // IC or passport number
-  email?: string;            // optional
-  currentAddress: string;    // current address
-  wechatId?: string;         // optional
-  whatsappNumber?: string;   // optional
-  remark?: string;           // optional
-  // legacy field kept for backward compat with bookings
-  phone?: string;
-  address?: string;
+  customerNo?: number;
+  name: string;
+  phoneLocal: string;
+  phoneOther?: string;
+  icPassport: string;
+  email?: string;
+  currentAddress: string;
+  wechatId?: string;
+  whatsappNumber?: string;
+  remark?: string;
 }
 
-export interface Booking {
+// ─── Timeline / Lease ────────────────────────────────────────────────────────
+
+export type LeaseStatusType = 'UPCOMING' | 'ACTIVE' | 'TERMINATED' | 'COMPLETED';
+export type LeaseBillingCycle = 'DAILY' | 'FIXED_TERM' | 'MONTHLY';
+
+export interface TimelineLease {
   id: string;
-  roomId: string;
-  customerId: string; // Linked to Customer entity
-  customerName: string; // Denormalized for quick access
-  customerPhone?: string;
   startDate: string;
   endDate: string;
-  totalAmount: number;
-  paymentStatus: PaymentStatus;
-  billingCycle: BillingCycle;
+  status: LeaseStatusType;
+  customerName: string;
 }
 
-export interface MaintenanceLog {
+export interface TimelineUnit {
   id: string;
-  roomId: string;
-  description: string;
-  date: string;
-  cost: number;
+  unitNumber: string;
+  type: string;
+  status: string;
+  suggestedRentalPrice: number;
+  leases: TimelineLease[];
+}
+
+export interface TimelineProperty {
+  id: string;
+  name: string;
+  units: TimelineUnit[];
+}
+
+export interface TimelineCarpark {
+  id: string;
+  carparkNumber: string;
+  status: string;
+  suggestedRentalPrice: number;
+  leases: TimelineLease[];
+}
+
+export interface TimelineData {
+  properties: TimelineProperty[];
+  carparks: TimelineCarpark[];
+}
+
+export interface CustomerSearchResult {
+  id: string;
+  name: string;
+  phoneLocal: string;
+  icPassport: string;
+  email?: string;
+  currentAddress?: string;
 }

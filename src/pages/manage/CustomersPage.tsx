@@ -49,7 +49,7 @@ export function CustomersPage({ customers, onAdd, onEdit, onDelete }: CustomersP
                       <div className="text-xs text-slate-400 mt-0.5">Overseas: {customer.phoneOther}</div>
                     )}
                   </td>
-                  <td className="px-4 py-4 text-slate-600 text-sm">{customer.phoneLocal ?? customer.phone}</td>
+                  <td className="px-4 py-4 text-slate-600 text-sm">{customer.phoneLocal}</td>
                   <td className="px-4 py-4 text-slate-600 text-sm font-mono">{customer.icPassport ?? '—'}</td>
                   <td className="px-4 py-4 text-slate-600 text-sm">{customer.email ?? '—'}</td>
                   <td className="px-4 py-4 text-sm">

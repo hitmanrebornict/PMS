@@ -1,8 +1,8 @@
-import { Building2, BedDouble, Wrench, BarChart3, Users, CalendarDays, FileText, LayoutDashboard, X } from 'lucide-react';
+import { Building2, Users, CalendarDays, LayoutDashboard, X, Home, Car } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { SidebarItem } from '../common/SidebarItem';
 
-export type ActiveTab = 'dashboard' | 'properties' | 'rooms' | 'maintenance' | 'revenue' | 'customers' | 'bookings' | 'fees';
+export type ActiveTab = 'dashboard' | 'masterProperties' | 'units' | 'carparks' | 'timeline' | 'customers';
 
 interface ManageSidebarProps {
   activeTab: ActiveTab;
@@ -56,13 +56,19 @@ export function ManageSidebar({ activeTab, setActiveTab, isOpen, setIsOpen }: Ma
         {/* Nav Items */}
         <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
           <SidebarItem icon={<LayoutDashboard size={20} />} label="Dashboard"     active={activeTab === 'dashboard'}   onClick={() => navigate('dashboard')} />
-          <SidebarItem icon={<Building2 size={20} />}       label="Properties"    active={activeTab === 'properties'}  onClick={() => navigate('properties')} />
-          <SidebarItem icon={<BedDouble size={20} />}       label="Rooms"         active={activeTab === 'rooms'}       onClick={() => navigate('rooms')} />
-          <SidebarItem icon={<Wrench size={20} />}          label="Maintenance"   active={activeTab === 'maintenance'} onClick={() => navigate('maintenance')} />
-          <SidebarItem icon={<BarChart3 size={20} />}       label="Revenue"       active={activeTab === 'revenue'}     onClick={() => navigate('revenue')} />
+
+          <div className="pt-3 pb-1 px-3">
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Asset Management</p>
+          </div>
+          <SidebarItem icon={<Building2 size={20} />}       label="Master Properties" active={activeTab === 'masterProperties'} onClick={() => navigate('masterProperties')} />
+          <SidebarItem icon={<Home size={20} />}            label="Units"         active={activeTab === 'units'}       onClick={() => navigate('units')} />
+          <SidebarItem icon={<Car size={20} />}             label="Carparks"      active={activeTab === 'carparks'}    onClick={() => navigate('carparks')} />
+          <SidebarItem icon={<CalendarDays size={20} />}   label="Timeline"      active={activeTab === 'timeline'}   onClick={() => navigate('timeline')} />
+
+          <div className="pt-3 pb-1 px-3">
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">People</p>
+          </div>
           <SidebarItem icon={<Users size={20} />}           label="Customers"     active={activeTab === 'customers'}   onClick={() => navigate('customers')} />
-          <SidebarItem icon={<CalendarDays size={20} />}    label="Bookings"      active={activeTab === 'bookings'}    onClick={() => navigate('bookings')} />
-          <SidebarItem icon={<FileText size={20} />}        label="Fees Collection" active={activeTab === 'fees'}     onClick={() => navigate('fees')} />
         </nav>
 
         {/* User Footer */}
