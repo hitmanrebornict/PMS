@@ -196,3 +196,58 @@ export interface CustomerSearchResult {
   email?: string;
   currentAddress?: string;
 }
+
+// ─── Profit ───────────────────────────────────────────────────────────────────
+
+export interface ProfitInvoiceRow {
+  id: string;
+  amount: number;
+  paidAt: string;
+  periodStart: string;
+  periodEnd: string;
+}
+
+export interface ProfitExpenseRow {
+  id: string;
+  amount: number;
+  description?: string | null;
+  expenseDate: string;
+  expenseType: { id: string; name: string };
+}
+
+export interface ProfitUnit {
+  id: string;
+  unitNumber: string;
+  totalIncome: number;
+  totalExpenses: number;
+  netProfit: number;
+  invoices: ProfitInvoiceRow[];
+  expenses: ProfitExpenseRow[];
+}
+
+export interface ProfitProperty {
+  id: string;
+  name: string;
+  address: string;
+  totalIncome: number;
+  totalExpenses: number;
+  netProfit: number;
+  units: ProfitUnit[];
+}
+
+export interface ProfitCarparkRow {
+  id: string;
+  amount: number;
+  paidAt: string;
+  periodStart: string;
+  periodEnd: string;
+  carparkNumber: string;
+}
+
+export interface ProfitSummary {
+  period: { from: string; to: string };
+  summary: { totalIncome: number; totalExpenses: number; netProfit: number };
+  properties: ProfitProperty[];
+  carparkIncome: number;
+  carparkRows: ProfitCarparkRow[];
+}

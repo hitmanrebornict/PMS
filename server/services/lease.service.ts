@@ -85,15 +85,19 @@ export function generateInvoiceData(
       current = monthEnd;
     }
   } else if (billingCycle === 'MONTHLY') {
-    // Only the first month's invoice
-    const monthEnd = new Date(startDate.getFullYear(), startDate.getMonth() + 1, startDate.getDate());
-    const periodEnd = monthEnd > endDate ? endDate : monthEnd;
-    invoices.push({
-      periodStart: startDate,
-      periodEnd,
-      amount: unitPrice,
-      dueDate: startDate,
-    });
+    // One invoice per calendar month for the full term
+    let current = new Date(startDate);
+    while (current < endDate) {
+      const monthEnd = new Date(current.getFullYear(), current.getMonth() + 1, current.getDate());
+      const periodEnd = monthEnd > endDate ? endDate : monthEnd;
+      invoices.push({
+        periodStart: new Date(current),
+        periodEnd,
+        amount: unitPrice,
+        dueDate: new Date(current),
+      });
+      current = monthEnd;
+    }
   }
 
   return invoices;
