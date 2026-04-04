@@ -1,8 +1,8 @@
-import { Building2, Users, CalendarDays, LayoutDashboard, X, Home, Car } from 'lucide-react';
+import { Building2, Users, CalendarDays, LayoutDashboard, X, Home, Car, FileText } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { SidebarItem } from '../common/SidebarItem';
 
-export type ActiveTab = 'dashboard' | 'masterProperties' | 'units' | 'carparks' | 'timeline' | 'customers';
+export type ActiveTab = 'dashboard' | 'masterProperties' | 'units' | 'carparks' | 'timeline' | 'leases' | 'customers';
 
 interface ManageSidebarProps {
   activeTab: ActiveTab;
@@ -64,6 +64,7 @@ export function ManageSidebar({ activeTab, setActiveTab, isOpen, setIsOpen }: Ma
           <SidebarItem icon={<Home size={20} />}            label="Units"         active={activeTab === 'units'}       onClick={() => navigate('units')} />
           <SidebarItem icon={<Car size={20} />}             label="Carparks"      active={activeTab === 'carparks'}    onClick={() => navigate('carparks')} />
           <SidebarItem icon={<CalendarDays size={20} />}   label="Timeline"      active={activeTab === 'timeline'}   onClick={() => navigate('timeline')} />
+          <SidebarItem icon={<FileText size={20} />}       label="Leases"        active={activeTab === 'leases'}     onClick={() => navigate('leases')} />
 
           <div className="pt-3 pb-1 px-3">
             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">People</p>

@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'motion/react';
 
 // Types
 import {
-  Customer,
+  Customer, Lease,
   MasterProperty, Unit, Carpark, UnitType, AssetStatus,
 } from './types';
 
@@ -21,6 +21,7 @@ import { UnitsPage }             from './pages/manage/UnitsPage';
 import { CarparksPage }          from './pages/manage/CarparksPage';
 import { TimelinePage }          from './pages/manage/TimelinePage';
 import { CustomersPage }         from './pages/manage/CustomersPage';
+import { LeasesPage }            from './pages/manage/LeasesPage';
 
 // Modals
 import { MasterPropertyModal }   from './components/manage/MasterPropertyModal';
@@ -28,6 +29,7 @@ import { UnitModal }             from './components/manage/UnitModal';
 import { CarparkModal }          from './components/manage/CarparkModal';
 import { CustomerModal }         from './components/manage/CustomerModal';
 import { LeaseBookingModal }     from './components/manage/LeaseBookingModal';
+import { LeaseDetailModal }      from './components/manage/LeaseDetailModal';
 
 export default function App() {
   const { apiFetch } = useApi();
@@ -41,6 +43,7 @@ export default function App() {
   const [units,           setUnits]           = useState<Unit[]>([]);
   const [carparks,        setCarparks]        = useState<Carpark[]>([]);
   const [customers,       setCustomers]       = useState<Customer[]>([]);
+  const [leases,          setLeases]          = useState<Lease[]>([]);
 
   // ─── Modal open state ──────────────────────────────────────────
   const [isMasterPropertyModalOpen, setIsMasterPropertyModalOpen] = useState(false);
@@ -48,6 +51,8 @@ export default function App() {
   const [isCarparkModalOpen,        setIsCarparkModalOpen]        = useState(false);
   const [isCustomerModalOpen,       setIsCustomerModalOpen]       = useState(false);
   const [isLeaseModalOpen,          setIsLeaseModalOpen]          = useState(false);
+  const [isLeaseDetailModalOpen,    setIsLeaseDetailModalOpen]    = useState(false);
+  const [selectedLeaseId,           setSelectedLeaseId]           = useState<string | null>(null);
 
   // ─── Selected items for edit ───────────────────────────────────
   const [selectedMasterProperty, setSelectedMasterProperty] = useState<MasterProperty | null>(null);
@@ -58,16 +63,18 @@ export default function App() {
 
   // ─── Load data from API ────────────────────────────────────────
   const refreshData = useCallback(async () => {
-    const [propsRes, unitsRes, carparksRes, customersRes] = await Promise.all([
+    const [propsRes, unitsRes, carparksRes, customersRes, leasesRes] = await Promise.all([
       apiFetch('/api/assets/properties'),
       apiFetch('/api/assets/units'),
       apiFetch('/api/assets/carparks'),
       apiFetch('/api/customers'),
+      apiFetch('/api/leases'),
     ]);
     if (propsRes.ok) setMasterProperties(await propsRes.json());
     if (unitsRes.ok) setUnits(await unitsRes.json());
     if (carparksRes.ok) setCarparks(await carparksRes.json());
     if (customersRes.ok) setCustomers(await customersRes.json());
+    if (leasesRes.ok) setLeases(await leasesRes.json());
   }, [apiFetch]);
 
   useEffect(() => { refreshData(); }, [refreshData]);
@@ -261,6 +268,15 @@ export default function App() {
         }}
       />
     ),
+    leases: (
+      <LeasesPage
+        leases={leases}
+        onViewDetail={(lease) => {
+          setSelectedLeaseId(lease.id);
+          setIsLeaseDetailModalOpen(true);
+        }}
+      />
+    ),
     customers: (
       <CustomersPage
         customers={customers}
@@ -353,8 +369,14 @@ export default function App() {
       <LeaseBookingModal
         isOpen={isLeaseModalOpen}
         onClose={() => { setIsLeaseModalOpen(false); setLeaseModalPrefill(null); }}
-        onSuccess={() => { /* TimelinePage auto-refreshes via its own useEffect */ }}
+        onSuccess={() => { refreshData(); }}
         prefill={leaseModalPrefill}
+      />
+      <LeaseDetailModal
+        isOpen={isLeaseDetailModalOpen}
+        onClose={() => { setIsLeaseDetailModalOpen(false); setSelectedLeaseId(null); }}
+        leaseId={selectedLeaseId}
+        onAction={() => { refreshData(); }}
       />
     </div>
   );
