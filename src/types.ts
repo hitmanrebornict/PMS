@@ -95,6 +95,52 @@ export interface TimelineData {
   carparks: TimelineCarpark[];
 }
 
+// ─── Lease Management ───────────────────────────────────────────────────────
+
+export type InvoiceStatusType = 'PENDING' | 'PAID' | 'OVERDUE' | 'CANCELLED';
+export type DepositStatusType = 'PENDING' | 'HELD' | 'PARTIALLY_REFUNDED' | 'REFUNDED' | 'FORFEITED';
+
+export interface LeaseDepositInfo {
+  id: string;
+  amount: number;
+  status: DepositStatusType;
+  paidAt?: string | null;
+  refundedAt?: string | null;
+}
+
+export interface LeaseInvoice {
+  id: string;
+  periodStart: string;
+  periodEnd: string;
+  amount: number;
+  status: InvoiceStatusType;
+  dueDate: string;
+  paidAt?: string | null;
+}
+
+export interface Lease {
+  id: string;
+  startDate: string;
+  endDate: string;
+  billingCycle: LeaseBillingCycle;
+  unitPrice: number;
+  totalAmount: number;
+  status: LeaseStatusType;
+  notes?: string;
+  customer: { id: string; name: string; phoneLocal: string; icPassport: string };
+  unit?: { id: string; unitNumber: string; property: { name: string } } | null;
+  carpark?: { id: string; carparkNumber: string } | null;
+  deposit?: LeaseDepositInfo | null;
+  _count: { invoices: number };
+}
+
+export interface LeaseDetail extends Lease {
+  invoices: LeaseInvoice[];
+  customer: { id: string; name: string; phoneLocal: string; icPassport: string; email?: string; currentAddress?: string };
+}
+
+// ─── Customer Search ────────────────────────────────────────────────────────
+
 export interface CustomerSearchResult {
   id: string;
   name: string;
