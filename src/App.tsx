@@ -14,7 +14,7 @@ import { useApi } from './hooks/useApi';
 // Layout
 import { ManageSidebar, ActiveTab } from './components/layout/ManageSidebar';
 
-// Pages
+
 import { DashboardPage }         from './pages/manage/DashboardPage';
 import { MasterPropertiesPage }  from './pages/manage/MasterPropertiesPage';
 import { UnitsPage }             from './pages/manage/UnitsPage';
@@ -263,7 +263,7 @@ export default function App() {
     timeline: (
       <TimelinePage
         onBookAsset={(asset) => {
-          setLeaseModalPrefill(asset);
+          setLeaseModalPrefill({ assetId: asset.id, assetType: asset.type, date: asset.date, suggestedPrice: asset.suggestedPrice });
           setIsLeaseModalOpen(true);
         }}
       />

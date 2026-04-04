@@ -39,9 +39,10 @@ export function TimelinePage({ onBookAsset }: TimelinePageProps) {
 
   const fetchTimeline = useCallback(async () => {
     setLoading(true);
+    const end = addDays(startDate, dayCount);
     try {
       const res = await apiFetch(
-        `/api/inventory/timeline?startDate=${toDateStr(startDate)}&endDate=${toDateStr(endDate)}`
+        `/api/inventory/timeline?startDate=${toDateStr(startDate)}&endDate=${toDateStr(end)}`
       );
       if (res.ok) {
         setData(await res.json());
@@ -51,7 +52,7 @@ export function TimelinePage({ onBookAsset }: TimelinePageProps) {
     } finally {
       setLoading(false);
     }
-  }, [apiFetch, startDate, endDate]);
+  }, [apiFetch, startDate, dayCount]);
 
   useEffect(() => {
     fetchTimeline();
