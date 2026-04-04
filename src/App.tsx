@@ -31,6 +31,7 @@ import { RevenuePage }      from './pages/manage/RevenuePage';
 import { CustomersPage }    from './pages/manage/CustomersPage';
 import { BookingsPage }     from './pages/manage/BookingsPage';
 import { FeesPage }         from './pages/manage/FeesPage';
+import { UsersPage }        from './pages/manage/UsersPage';
 
 // Modals
 import { PropertyModal }    from './components/manage/PropertyModal';
@@ -337,6 +338,7 @@ export default function App() {
         generateInvoice={generateInvoice}
       />
     ),
+    users: <UsersPage />,
   };
 
   // ─── Render ────────────────────────────────────────────────────

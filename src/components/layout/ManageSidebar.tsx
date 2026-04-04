@@ -1,8 +1,9 @@
-import { Building2, BedDouble, Wrench, BarChart3, Users, CalendarDays, FileText, LayoutDashboard, X } from 'lucide-react';
+import { Building2, BedDouble, Wrench, BarChart3, Users, CalendarDays, FileText, LayoutDashboard, X, UserCog } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { SidebarItem } from '../common/SidebarItem';
+import { useAuth } from '../../contexts/AuthContext';
 
-export type ActiveTab = 'dashboard' | 'properties' | 'rooms' | 'maintenance' | 'revenue' | 'customers' | 'bookings' | 'fees';
+export type ActiveTab = 'dashboard' | 'properties' | 'rooms' | 'maintenance' | 'revenue' | 'customers' | 'bookings' | 'fees' | 'users';
 
 interface ManageSidebarProps {
   activeTab: ActiveTab;
@@ -12,6 +13,9 @@ interface ManageSidebarProps {
 }
 
 export function ManageSidebar({ activeTab, setActiveTab, isOpen, setIsOpen }: ManageSidebarProps) {
+  const { user } = useAuth();
+  const isSuperAdmin = user?.role === 'SUPER_ADMIN';
+
   const navigate = (tab: ActiveTab) => {
     setActiveTab(tab);
     setIsOpen(false);
@@ -63,17 +67,23 @@ export function ManageSidebar({ activeTab, setActiveTab, isOpen, setIsOpen }: Ma
           <SidebarItem icon={<Users size={20} />}           label="Customers"     active={activeTab === 'customers'}   onClick={() => navigate('customers')} />
           <SidebarItem icon={<CalendarDays size={20} />}    label="Bookings"      active={activeTab === 'bookings'}    onClick={() => navigate('bookings')} />
           <SidebarItem icon={<FileText size={20} />}        label="Fees Collection" active={activeTab === 'fees'}     onClick={() => navigate('fees')} />
+          {isSuperAdmin && (
+            <>
+              <div className="my-2 border-t border-slate-100" />
+              <SidebarItem icon={<UserCog size={20} />} label="User Management" active={activeTab === 'users'} onClick={() => navigate('users')} />
+            </>
+          )}
         </nav>
 
         {/* User Footer */}
         <div className="p-4 border-t border-slate-100">
           <div className="flex items-center gap-3 p-2 rounded-lg bg-slate-50">
-            <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center text-slate-600 font-bold">
-              AD
+            <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold text-sm flex-shrink-0">
+              {user?.name?.charAt(0).toUpperCase() ?? '?'}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-slate-900 truncate">Admin User</p>
-              <p className="text-xs text-slate-500 truncate">VersaHome Admin</p>
+              <p className="text-sm font-medium text-slate-900 truncate">{user?.name ?? 'User'}</p>
+              <p className="text-xs text-slate-500 truncate capitalize">{user?.role?.toLowerCase().replace('_', ' ') ?? ''}</p>
             </div>
           </div>
         </div>
