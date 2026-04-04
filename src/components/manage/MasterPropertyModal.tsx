@@ -1,15 +1,15 @@
 import React from 'react';
-import { Property } from '../../types';
+import { MasterProperty } from '../../types';
 import { Modal } from '../common/Modal';
 
-interface PropertyModalProps {
+interface MasterPropertyModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (e: React.FormEvent<HTMLFormElement>) => void;
-  selectedProperty: Property | null;
+  selectedProperty: MasterProperty | null;
 }
 
-export function PropertyModal({ isOpen, onClose, onSubmit, selectedProperty }: PropertyModalProps) {
+export function MasterPropertyModal({ isOpen, onClose, onSubmit, selectedProperty }: MasterPropertyModalProps) {
   return (
     <Modal
       isOpen={isOpen}
@@ -24,7 +24,7 @@ export function PropertyModal({ isOpen, onClose, onSubmit, selectedProperty }: P
             defaultValue={selectedProperty?.name}
             required
             className="w-full px-4 py-2 rounded-lg border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
-            placeholder="e.g. Sunset Villa"
+            placeholder="e.g. Versa Home Residency"
           />
         </div>
         <div>
@@ -32,21 +32,9 @@ export function PropertyModal({ isOpen, onClose, onSubmit, selectedProperty }: P
           <textarea
             name="address"
             defaultValue={selectedProperty?.address}
-            required
             rows={3}
             className="w-full px-4 py-2 rounded-lg border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
-            placeholder="Full address here..."
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">Total Rooms</label>
-          <input
-            name="totalRooms"
-            type="number"
-            defaultValue={selectedProperty?.totalRooms}
-            required
-            className="w-full px-4 py-2 rounded-lg border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
-            placeholder="e.g. 10"
+            placeholder="Full address (optional)"
           />
         </div>
         <div className="flex justify-end gap-3 pt-4">

@@ -1,206 +1,163 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Building2, Menu } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
 
 // Types
 import {
-  Property, Room, Booking, MaintenanceLog,
-  BillingCycle, PaymentStatus, Customer,
+  Customer, Lease,
+  MasterProperty, Unit, Carpark, UnitType, AssetStatus,
 } from './types';
 
-// Repositories
-import {
-  PropertyRepository, RoomRepository, BookingRepository,
-  MaintenanceRepository, CustomerRepository,
-} from './repositories';
-
-// Utilities
-import { formatCurrency, formatDate } from './utils';
+// Hooks
+import { useApi } from './hooks/useApi';
 
 // Layout
 import { ManageSidebar, ActiveTab } from './components/layout/ManageSidebar';
 
-// Pages
+
 import { DashboardPage }    from './pages/manage/DashboardPage';
-import { PropertiesPage }   from './pages/manage/PropertiesPage';
-import { RoomsPage }        from './pages/manage/RoomsPage';
-import { MaintenancePage }  from './pages/manage/MaintenancePage';
-import { RevenuePage }      from './pages/manage/RevenuePage';
-import { CustomersPage }    from './pages/manage/CustomersPage';
-import { BookingsPage }     from './pages/manage/BookingsPage';
-import { FeesPage }         from './pages/manage/FeesPage';
+import { DashboardPage }         from './pages/manage/DashboardPage';
+import { MasterPropertiesPage }  from './pages/manage/MasterPropertiesPage';
+import { UnitsPage }             from './pages/manage/UnitsPage';
+import { CarparksPage }          from './pages/manage/CarparksPage';
+import { TimelinePage }          from './pages/manage/TimelinePage';
+import { CustomersPage }         from './pages/manage/CustomersPage';
+import { LeasesPage }            from './pages/manage/LeasesPage';
 import { UsersPage }        from './pages/manage/UsersPage';
 
-// Modals
-import { PropertyModal }    from './components/manage/PropertyModal';
-import { RoomModal }        from './components/manage/RoomModal';
-import { BookingModal }     from './components/manage/BookingModal';
-import { MaintenanceModal } from './components/manage/MaintenanceModal';
-import { CustomerModal }    from './components/manage/CustomerModal';
 
-// Repository singletons
-const propertyRepo    = new PropertyRepository();
-const roomRepo        = new RoomRepository();
-const bookingRepo     = new BookingRepository();
-const maintenanceRepo = new MaintenanceRepository();
-const customerRepo    = new CustomerRepository();
+// Modals
+import { MasterPropertyModal }   from './components/manage/MasterPropertyModal';
+import { UnitModal }             from './components/manage/UnitModal';
+import { CarparkModal }          from './components/manage/CarparkModal';
+import { CustomerModal }         from './components/manage/CustomerModal';
+import { LeaseBookingModal }     from './components/manage/LeaseBookingModal';
+import { LeaseDetailModal }      from './components/manage/LeaseDetailModal';
 
 export default function App() {
+  const { apiFetch } = useApi();
+
   // ─── Navigation ────────────────────────────────────────────────
   const [activeTab, setActiveTab]       = useState<ActiveTab>('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   // ─── Data ──────────────────────────────────────────────────────
-  const [properties,      setProperties]      = useState<Property[]>([]);
-  const [rooms,           setRooms]           = useState<Room[]>([]);
-  const [bookings,        setBookings]        = useState<Booking[]>([]);
-  const [maintenanceLogs, setMaintenanceLogs] = useState<MaintenanceLog[]>([]);
+  const [masterProperties, setMasterProperties] = useState<MasterProperty[]>([]);
+  const [units,           setUnits]           = useState<Unit[]>([]);
+  const [carparks,        setCarparks]        = useState<Carpark[]>([]);
   const [customers,       setCustomers]       = useState<Customer[]>([]);
-
-  // ─── Filters ───────────────────────────────────────────────────
-  const [feeFilterStart, setFeeFilterStart] = useState('');
-  const [feeFilterEnd,   setFeeFilterEnd]   = useState('');
+  const [leases,          setLeases]          = useState<Lease[]>([]);
 
   // ─── Modal open state ──────────────────────────────────────────
-  const [isPropertyModalOpen,    setIsPropertyModalOpen]    = useState(false);
-  const [isRoomModalOpen,        setIsRoomModalOpen]        = useState(false);
-  const [isBookingModalOpen,     setIsBookingModalOpen]     = useState(false);
-  const [isMaintenanceModalOpen, setIsMaintenanceModalOpen] = useState(false);
-  const [isCustomerModalOpen,    setIsCustomerModalOpen]    = useState(false);
+  const [isMasterPropertyModalOpen, setIsMasterPropertyModalOpen] = useState(false);
+  const [isUnitModalOpen,           setIsUnitModalOpen]           = useState(false);
+  const [isCarparkModalOpen,        setIsCarparkModalOpen]        = useState(false);
+  const [isCustomerModalOpen,       setIsCustomerModalOpen]       = useState(false);
+  const [isLeaseModalOpen,          setIsLeaseModalOpen]          = useState(false);
+  const [isLeaseDetailModalOpen,    setIsLeaseDetailModalOpen]    = useState(false);
+  const [selectedLeaseId,           setSelectedLeaseId]           = useState<string | null>(null);
 
   // ─── Selected items for edit ───────────────────────────────────
-  const [selectedProperty,    setSelectedProperty]    = useState<Property | null>(null);
-  const [selectedRoom,        setSelectedRoom]        = useState<Room | null>(null);
-  const [selectedBookingRoom, setSelectedBookingRoom] = useState<Room | null>(null);
-  const [selectedCustomer,    setSelectedCustomer]    = useState<Customer | null>(null);
+  const [selectedMasterProperty, setSelectedMasterProperty] = useState<MasterProperty | null>(null);
+  const [selectedUnit,           setSelectedUnit]           = useState<Unit | null>(null);
+  const [selectedCarpark,        setSelectedCarpark]        = useState<Carpark | null>(null);
+  const [selectedCustomer,       setSelectedCustomer]       = useState<Customer | null>(null);
+  const [leaseModalPrefill,     setLeaseModalPrefill]     = useState<{ assetId: string; assetType: 'unit' | 'carpark'; date: string; suggestedPrice: number } | null>(null);
 
-  // ─── Load data ─────────────────────────────────────────────────
-  useEffect(() => { refreshData(); }, []);
+  // ─── Load data from API ────────────────────────────────────────
+  const refreshData = useCallback(async () => {
+    const [propsRes, unitsRes, carparksRes, customersRes, leasesRes] = await Promise.all([
+      apiFetch('/api/assets/properties'),
+      apiFetch('/api/assets/units'),
+      apiFetch('/api/assets/carparks'),
+      apiFetch('/api/customers'),
+      apiFetch('/api/leases'),
+    ]);
+    if (propsRes.ok) setMasterProperties(await propsRes.json());
+    if (unitsRes.ok) setUnits(await unitsRes.json());
+    if (carparksRes.ok) setCarparks(await carparksRes.json());
+    if (customersRes.ok) setCustomers(await customersRes.json());
+    if (leasesRes.ok) setLeases(await leasesRes.json());
+  }, [apiFetch]);
 
-  const refreshData = () => {
-    setProperties(propertyRepo.getAll());
-    setRooms(roomRepo.getAll());
-    setBookings(bookingRepo.getAll());
-    setMaintenanceLogs(maintenanceRepo.getAll());
-    setCustomers(customerRepo.getAll());
-  };
-
-  // ─── Derived stats ─────────────────────────────────────────────
-  const stats = useMemo(() => {
-    const today = new Date().toISOString().split('T')[0];
-    const occupiedRoomIds = bookings
-      .filter(b => {
-        const now = new Date(today);
-        return now >= new Date(b.startDate) && now <= new Date(b.endDate);
-      })
-      .map(b => b.roomId);
-
-    return {
-      totalRooms: rooms.length,
-      occupied:   occupiedRoomIds.length,
-      vacant:     rooms.length - occupiedRoomIds.length,
-      arrears:    bookings.filter(b => b.paymentStatus !== PaymentStatus.PAID),
-    };
-  }, [rooms, bookings]);
+  useEffect(() => { refreshData(); }, [refreshData]);
 
   // ─── Handlers ──────────────────────────────────────────────────
-  const handleMarkAsPaid = (bookingId: string) => {
-    const booking = bookings.find(b => b.id === bookingId);
-    if (booking) {
-      bookingRepo.update(bookingId, { ...booking, paymentStatus: PaymentStatus.PAID });
-      refreshData();
+
+  const handleAddMasterProperty = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const fd = new FormData(e.currentTarget);
+    const payload = {
+      name:    fd.get('name') as string,
+      address: (fd.get('address') as string) || undefined,
+    };
+    const url = selectedMasterProperty
+      ? `/api/assets/properties/${selectedMasterProperty.id}`
+      : '/api/assets/properties';
+    const method = selectedMasterProperty ? 'PUT' : 'POST';
+    const res = await apiFetch(url, { method, body: JSON.stringify(payload) });
+    if (res.ok) {
+      setIsMasterPropertyModalOpen(false);
+      setSelectedMasterProperty(null);
+      await refreshData();
+    } else {
+      const data = await res.json();
+      alert(data.error || 'Failed to save property');
     }
   };
 
-  const handleAddProperty = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleAddUnit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
-    const payload: Property = {
-      id:         selectedProperty?.id || crypto.randomUUID(),
-      name:       fd.get('name') as string,
-      address:    fd.get('address') as string,
-      totalRooms: Number(fd.get('totalRooms')),
+    const payload = {
+      propertyId:           fd.get('propertyId') as string,
+      unitNumber:           fd.get('unitNumber') as string,
+      type:                 fd.get('type') as UnitType,
+      suggestedRentalPrice: Number(fd.get('suggestedRentalPrice')),
+      status:               fd.get('status') as AssetStatus,
     };
-    selectedProperty ? propertyRepo.update(selectedProperty.id, payload) : propertyRepo.create(payload);
-    setIsPropertyModalOpen(false);
-    setSelectedProperty(null);
-    refreshData();
+    const url = selectedUnit
+      ? `/api/assets/units/${selectedUnit.id}`
+      : '/api/assets/units';
+    const method = selectedUnit ? 'PUT' : 'POST';
+    const res = await apiFetch(url, { method, body: JSON.stringify(payload) });
+    if (res.ok) {
+      setIsUnitModalOpen(false);
+      setSelectedUnit(null);
+      await refreshData();
+    } else {
+      const data = await res.json();
+      alert(data.error || 'Failed to save unit');
+    }
   };
 
-  const handleAddRoom = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleAddCarpark = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
-    const payload: Room = {
-      id:           selectedRoom?.id || crypto.randomUUID(),
-      propertyId:   fd.get('propertyId') as string,
-      roomNumber:   fd.get('roomNumber') as string,
-      type:         fd.get('type') as string,
-      baseRate:     Number(fd.get('baseRate')),
-      baseRateType: fd.get('baseRateType') as BillingCycle,
+    const payload = {
+      carparkNumber:        fd.get('carparkNumber') as string,
+      suggestedRentalPrice: Number(fd.get('suggestedRentalPrice')),
+      status:               fd.get('status') as AssetStatus,
     };
-    selectedRoom ? roomRepo.update(selectedRoom.id, payload) : roomRepo.create(payload);
-    setIsRoomModalOpen(false);
-    setSelectedRoom(null);
-    refreshData();
+    const url = selectedCarpark
+      ? `/api/assets/carparks/${selectedCarpark.id}`
+      : '/api/assets/carparks';
+    const method = selectedCarpark ? 'PUT' : 'POST';
+    const res = await apiFetch(url, { method, body: JSON.stringify(payload) });
+    if (res.ok) {
+      setIsCarparkModalOpen(false);
+      setSelectedCarpark(null);
+      await refreshData();
+    } else {
+      const data = await res.json();
+      alert(data.error || 'Failed to save carpark');
+    }
   };
 
-  const handleAddBooking = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    if (!selectedBookingRoom) return;
-    const fd = new FormData(e.currentTarget);
-    const customer = customers.find(c => c.id === fd.get('customerId'));
-    if (!customer) { alert('Please select a customer'); return; }
-
-    const startDate = fd.get('startDate') as string;
-    const endDate   = fd.get('endDate') as string;
-    const diffDays  = Math.ceil(
-      Math.abs(new Date(endDate).getTime() - new Date(startDate).getTime()) / (1000 * 60 * 60 * 24)
-    ) || 1;
-    const rate     = selectedBookingRoom.baseRate;
-    const rateType = selectedBookingRoom.baseRateType;
-    const total    =
-      rateType === BillingCycle.DAILY   ? diffDays * rate :
-      rateType === BillingCycle.WEEKLY  ? (diffDays / 7) * rate :
-      (diffDays / 30) * rate;
-
-    bookingRepo.create({
-      id:            crypto.randomUUID(),
-      roomId:        selectedBookingRoom.id,
-      customerId:    customer.id,
-      customerName:  customer.name,
-      customerPhone: customer.phone,
-      startDate,
-      endDate,
-      totalAmount:   total,
-      paymentStatus: fd.get('paymentStatus') as PaymentStatus,
-      billingCycle:  fd.get('billingCycle') as BillingCycle,
-    });
-    setIsBookingModalOpen(false);
-    setSelectedBookingRoom(null);
-    refreshData();
-  };
-
-  const handleAddMaintenance = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleAddCustomer = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
-    maintenanceRepo.create({
-      id:          crypto.randomUUID(),
-      roomId:      fd.get('roomId') as string,
-      description: fd.get('description') as string,
-      date:        fd.get('date') as string,
-      cost:        Number(fd.get('cost')),
-    });
-    setIsMaintenanceModalOpen(false);
-    refreshData();
-  };
-
-  const handleAddCustomer = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const fd = new FormData(e.currentTarget);
-    const payload: Customer = {
-      id:             selectedCustomer?.id || crypto.randomUUID(),
+    const payload = {
       name:           fd.get('name') as string,
       phoneLocal:     fd.get('phoneLocal') as string,
       phoneOther:     (fd.get('phoneOther') as string) || undefined,
@@ -210,132 +167,125 @@ export default function App() {
       wechatId:       (fd.get('wechatId') as string) || undefined,
       whatsappNumber: (fd.get('whatsappNumber') as string) || undefined,
       remark:         (fd.get('remark') as string) || undefined,
-      // legacy compat
-      phone:   fd.get('phoneLocal') as string,
-      address: fd.get('currentAddress') as string,
     };
-    selectedCustomer
-      ? customerRepo.update(selectedCustomer.id, payload)
-      : customerRepo.create(payload);
-    setIsCustomerModalOpen(false);
-    setSelectedCustomer(null);
-    refreshData();
+    const url = selectedCustomer
+      ? `/api/customers/${selectedCustomer.id}`
+      : '/api/customers';
+    const method = selectedCustomer ? 'PUT' : 'POST';
+    const res = await apiFetch(url, { method, body: JSON.stringify(payload) });
+    if (res.ok) {
+      setIsCustomerModalOpen(false);
+      setSelectedCustomer(null);
+      await refreshData();
+    } else {
+      const data = await res.json();
+      alert(data.error || 'Failed to save customer');
+    }
   };
 
-  const generateInvoice = (booking: Booking) => {
-    const room     = rooms.find(r => r.id === booking.roomId);
-    const property = properties.find(p => p.id === room?.propertyId);
-    const customer = customers.find(c => c.id === booking.customerId);
-    const doc      = new jsPDF();
+  const handleDeleteMasterProperty = async (p: MasterProperty) => {
+    if (!confirm('Delete this property and all its units?')) return;
+    const res = await apiFetch(`/api/assets/properties/${p.id}`, { method: 'DELETE' });
+    if (res.ok) {
+      await refreshData();
+    } else {
+      const data = await res.json();
+      alert(data.error || 'Failed to delete property');
+    }
+  };
 
-    doc.setFontSize(22);
-    doc.text('VersaHome PMS Invoice', 105, 20, { align: 'center' });
-    doc.setFontSize(10);
-    doc.text(`Invoice Date: ${formatDate(new Date().toISOString())}`, 105, 28, { align: 'center' });
+  const handleDeleteUnit = async (u: Unit) => {
+    if (!confirm('Delete this unit?')) return;
+    const res = await apiFetch(`/api/assets/units/${u.id}`, { method: 'DELETE' });
+    if (res.ok) {
+      await refreshData();
+    } else {
+      const data = await res.json();
+      alert(data.error || 'Failed to delete unit');
+    }
+  };
 
-    doc.setFontSize(12);
-    doc.setFont('helvetica', 'bold');
-    doc.text('From:', 20, 45);
-    doc.setFont('helvetica', 'normal');
-    doc.text(property?.name || 'VersaHome PMS', 20, 52);
-    doc.text(property?.address || 'N/A', 20, 58, { maxWidth: 80 });
+  const handleDeleteCarpark = async (c: Carpark) => {
+    if (!confirm('Delete this carpark?')) return;
+    const res = await apiFetch(`/api/assets/carparks/${c.id}`, { method: 'DELETE' });
+    if (res.ok) {
+      await refreshData();
+    } else {
+      const data = await res.json();
+      alert(data.error || 'Failed to delete carpark');
+    }
+  };
 
-    doc.setFont('helvetica', 'bold');
-    doc.text('Bill To:', 120, 45);
-    doc.setFont('helvetica', 'normal');
-    doc.text(customer?.name || booking.customerName, 120, 52);
-    doc.text(customer?.address || 'N/A', 120, 58, { maxWidth: 80 });
-
-    autoTable(doc, {
-      startY: 80,
-      head: [['Description', 'Rate', 'Cycle', 'Duration', 'Total']],
-      body: [[
-        `Room ${room?.roomNumber} (${room?.type})`,
-        formatCurrency(room?.baseRate || 0),
-        room?.baseRateType || 'N/A',
-        `${Math.ceil((new Date(booking.endDate).getTime() - new Date(booking.startDate).getTime()) / (1000 * 60 * 60 * 24))} Days`,
-        formatCurrency(booking.totalAmount),
-      ]],
-      theme: 'striped',
-      headStyles: { fillColor: [79, 70, 229] },
-    });
-
-    const finalY = (doc as any).lastAutoTable.finalY + 10;
-    doc.setFont('helvetica', 'bold');
-    doc.text(`Total Amount: ${formatCurrency(booking.totalAmount)}`, 140, finalY);
-    doc.text(`Payment Status: ${booking.paymentStatus}`, 140, finalY + 7);
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'italic');
-    doc.text('Thank you for choosing VersaHome!', 105, 280, { align: 'center' });
-    doc.save(`Invoice_${booking.customerName.replace(/\s+/g, '_')}_${booking.id.slice(0, 8)}.pdf`);
+  const handleDeleteCustomer = async (c: Customer) => {
+    if (!confirm('Delete this customer?')) return;
+    const res = await apiFetch(`/api/customers/${c.id}`, { method: 'DELETE' });
+    if (res.ok) {
+      await refreshData();
+    } else {
+      const data = await res.json();
+      alert(data.error || 'Failed to delete customer');
+    }
   };
 
   // ─── Page map ──────────────────────────────────────────────────
   const pageContent: Record<ActiveTab, React.ReactNode> = {
     dashboard: (
       <DashboardPage
-        rooms={rooms}
-        bookings={bookings}
-        stats={stats}
-        onBookRoom={room => { setSelectedBookingRoom(room); setIsBookingModalOpen(true); }}
-        generateInvoice={generateInvoice}
+        units={units}
+        carparks={carparks}
+        masterProperties={masterProperties}
       />
     ),
-    properties: (
-      <PropertiesPage
-        properties={properties}
-        onAdd={() => { setSelectedProperty(null); setIsPropertyModalOpen(true); }}
-        onEdit={p => { setSelectedProperty(p); setIsPropertyModalOpen(true); }}
-        onDelete={p => { if (confirm('Delete this property and all its rooms?')) { propertyRepo.delete(p.id); refreshData(); } }}
-        onViewRooms={() => setActiveTab('rooms')}
+    masterProperties: (
+      <MasterPropertiesPage
+        properties={masterProperties}
+        units={units}
+        onAdd={() => { setSelectedMasterProperty(null); setIsMasterPropertyModalOpen(true); }}
+        onEdit={p => { setSelectedMasterProperty(p); setIsMasterPropertyModalOpen(true); }}
+        onDelete={handleDeleteMasterProperty}
+        onViewUnits={() => setActiveTab('units')}
       />
     ),
-    rooms: (
-      <RoomsPage
-        rooms={rooms}
-        properties={properties}
-        onAdd={() => { setSelectedRoom(null); setIsRoomModalOpen(true); }}
-        onEdit={r => { setSelectedRoom(r); setIsRoomModalOpen(true); }}
-        onDelete={r => { if (confirm('Delete this room?')) { roomRepo.delete(r.id); refreshData(); } }}
+    units: (
+      <UnitsPage
+        units={units}
+        properties={masterProperties}
+        onAdd={() => { setSelectedUnit(null); setIsUnitModalOpen(true); }}
+        onEdit={u => { setSelectedUnit(u); setIsUnitModalOpen(true); }}
+        onDelete={handleDeleteUnit}
       />
     ),
-    maintenance: (
-      <MaintenancePage
-        maintenanceLogs={maintenanceLogs}
-        rooms={rooms}
-        onAdd={() => setIsMaintenanceModalOpen(true)}
-        onDelete={log => { if (confirm('Delete this log?')) { maintenanceRepo.delete(log.id); refreshData(); } }}
+    carparks: (
+      <CarparksPage
+        carparks={carparks}
+        onAdd={() => { setSelectedCarpark(null); setIsCarparkModalOpen(true); }}
+        onEdit={c => { setSelectedCarpark(c); setIsCarparkModalOpen(true); }}
+        onDelete={handleDeleteCarpark}
       />
     ),
-    revenue: (
-      <RevenuePage bookings={bookings} maintenanceLogs={maintenanceLogs} />
+    timeline: (
+      <TimelinePage
+        onBookAsset={(asset) => {
+          setLeaseModalPrefill(asset);
+          setIsLeaseModalOpen(true);
+        }}
+      />
+    ),
+    leases: (
+      <LeasesPage
+        leases={leases}
+        onViewDetail={(lease) => {
+          setSelectedLeaseId(lease.id);
+          setIsLeaseDetailModalOpen(true);
+        }}
+      />
     ),
     customers: (
       <CustomersPage
         customers={customers}
         onAdd={() => { setSelectedCustomer(null); setIsCustomerModalOpen(true); }}
         onEdit={c => { setSelectedCustomer(c); setIsCustomerModalOpen(true); }}
-        onDelete={c => { if (confirm('Delete this customer?')) { customerRepo.delete(c.id); refreshData(); } }}
-      />
-    ),
-    bookings: (
-      <BookingsPage
-        bookings={bookings}
-        rooms={rooms}
-        onDelete={b => { if (confirm('Delete this booking?')) { bookingRepo.delete(b.id); refreshData(); } }}
-        generateInvoice={generateInvoice}
-      />
-    ),
-    fees: (
-      <FeesPage
-        bookings={bookings}
-        rooms={rooms}
-        feeFilterStart={feeFilterStart}
-        feeFilterEnd={feeFilterEnd}
-        setFeeFilterStart={setFeeFilterStart}
-        setFeeFilterEnd={setFeeFilterEnd}
-        onMarkPaid={handleMarkAsPaid}
-        generateInvoice={generateInvoice}
+        onDelete={handleDeleteCustomer}
       />
     ),
     users: <UsersPage />,
@@ -395,38 +345,42 @@ export default function App() {
       </main>
 
       {/* ── Modals ─────────────────────────────────────────────── */}
-      <PropertyModal
-        isOpen={isPropertyModalOpen}
-        onClose={() => { setIsPropertyModalOpen(false); setSelectedProperty(null); }}
-        onSubmit={handleAddProperty}
-        selectedProperty={selectedProperty}
+      <MasterPropertyModal
+        isOpen={isMasterPropertyModalOpen}
+        onClose={() => { setIsMasterPropertyModalOpen(false); setSelectedMasterProperty(null); }}
+        onSubmit={handleAddMasterProperty}
+        selectedProperty={selectedMasterProperty}
       />
-      <RoomModal
-        isOpen={isRoomModalOpen}
-        onClose={() => { setIsRoomModalOpen(false); setSelectedRoom(null); }}
-        onSubmit={handleAddRoom}
-        selectedRoom={selectedRoom}
-        properties={properties}
+      <UnitModal
+        isOpen={isUnitModalOpen}
+        onClose={() => { setIsUnitModalOpen(false); setSelectedUnit(null); }}
+        onSubmit={handleAddUnit}
+        selectedUnit={selectedUnit}
+        properties={masterProperties}
       />
-      <BookingModal
-        isOpen={isBookingModalOpen}
-        onClose={() => { setIsBookingModalOpen(false); setSelectedBookingRoom(null); }}
-        onSubmit={handleAddBooking}
-        onAddCustomer={() => { setIsBookingModalOpen(false); setIsCustomerModalOpen(true); }}
-        selectedRoom={selectedBookingRoom}
-        customers={customers}
-      />
-      <MaintenanceModal
-        isOpen={isMaintenanceModalOpen}
-        onClose={() => setIsMaintenanceModalOpen(false)}
-        onSubmit={handleAddMaintenance}
-        rooms={rooms}
+      <CarparkModal
+        isOpen={isCarparkModalOpen}
+        onClose={() => { setIsCarparkModalOpen(false); setSelectedCarpark(null); }}
+        onSubmit={handleAddCarpark}
+        selectedCarpark={selectedCarpark}
       />
       <CustomerModal
         isOpen={isCustomerModalOpen}
         onClose={() => { setIsCustomerModalOpen(false); setSelectedCustomer(null); }}
         onSubmit={handleAddCustomer}
         selectedCustomer={selectedCustomer}
+      />
+      <LeaseBookingModal
+        isOpen={isLeaseModalOpen}
+        onClose={() => { setIsLeaseModalOpen(false); setLeaseModalPrefill(null); }}
+        onSuccess={() => { refreshData(); }}
+        prefill={leaseModalPrefill}
+      />
+      <LeaseDetailModal
+        isOpen={isLeaseDetailModalOpen}
+        onClose={() => { setIsLeaseDetailModalOpen(false); setSelectedLeaseId(null); }}
+        leaseId={selectedLeaseId}
+        onAction={() => { refreshData(); }}
       />
     </div>
   );

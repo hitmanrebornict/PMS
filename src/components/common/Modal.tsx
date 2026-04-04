@@ -7,9 +7,16 @@ interface ModalProps {
   onClose: () => void;
   title: string;
   children: React.ReactNode;
+  size?: 'sm' | 'md' | 'lg';
 }
 
-export function Modal({ isOpen, onClose, title, children }: ModalProps) {
+const sizeClasses = {
+  sm: 'max-w-sm',
+  md: 'max-w-md',
+  lg: 'max-w-2xl',
+};
+
+export function Modal({ isOpen, onClose, title, children, size = 'md' }: ModalProps) {
   if (!isOpen) return null;
 
   return (
@@ -25,7 +32,7 @@ export function Modal({ isOpen, onClose, title, children }: ModalProps) {
         initial={{ opacity: 0, y: 100 }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: 100 }}
-        className="relative bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full max-w-md overflow-hidden"
+        className={`relative bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full ${sizeClasses[size]} overflow-hidden`}
       >
         <div className="p-6 border-b border-slate-100 flex justify-between items-center">
           <h2 className="text-xl font-bold text-slate-900">{title}</h2>

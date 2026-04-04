@@ -1,28 +1,28 @@
 import React from 'react';
-import { Property, Room, BillingCycle } from '../../types';
+import { MasterProperty, Unit, UnitType, AssetStatus } from '../../types';
 import { Modal } from '../common/Modal';
 
-interface RoomModalProps {
+interface UnitModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (e: React.FormEvent<HTMLFormElement>) => void;
-  selectedRoom: Room | null;
-  properties: Property[];
+  selectedUnit: Unit | null;
+  properties: MasterProperty[];
 }
 
-export function RoomModal({ isOpen, onClose, onSubmit, selectedRoom, properties }: RoomModalProps) {
+export function UnitModal({ isOpen, onClose, onSubmit, selectedUnit, properties }: UnitModalProps) {
   return (
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={selectedRoom ? 'Edit Room' : 'Add New Room'}
+      title={selectedUnit ? 'Edit Unit' : 'Add New Unit'}
     >
       <form onSubmit={onSubmit} className="space-y-4">
         <div>
           <label className="block text-sm font-medium text-slate-700 mb-1">Property</label>
           <select
             name="propertyId"
-            defaultValue={selectedRoom?.propertyId}
+            defaultValue={selectedUnit?.propertyId}
             required
             className="w-full px-4 py-2 rounded-lg border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none bg-white"
           >
@@ -34,55 +34,56 @@ export function RoomModal({ isOpen, onClose, onSubmit, selectedRoom, properties 
         </div>
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Room Number</label>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Unit Number</label>
             <input
-              name="roomNumber"
-              defaultValue={selectedRoom?.roomNumber}
+              name="unitNumber"
+              defaultValue={selectedUnit?.unitNumber}
               required
               className="w-full px-4 py-2 rounded-lg border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
-              placeholder="e.g. 101"
+              placeholder="e.g. A-12-04"
             />
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">Type</label>
             <select
               name="type"
-              defaultValue={selectedRoom?.type}
+              defaultValue={selectedUnit?.type || UnitType.OTHER}
               required
               className="w-full px-4 py-2 rounded-lg border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none bg-white"
             >
-              <option value="Single">Single</option>
-              <option value="Double">Double</option>
-              <option value="Queen">Queen</option>
-              <option value="King">King</option>
-              <option value="Suite">Suite</option>
+              <option value={UnitType.STUDIO}>Studio</option>
+              <option value={UnitType.ONE_BEDROOM}>1 Bedroom</option>
+              <option value={UnitType.TWO_BEDROOM}>2 Bedroom</option>
+              <option value={UnitType.BUNGALOW}>Bungalow</option>
+              <option value={UnitType.OTHER}>Other</option>
             </select>
           </div>
         </div>
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Rate Type</label>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Suggested Rent (MYR)</label>
+            <input
+              name="suggestedRentalPrice"
+              type="number"
+              step="0.01"
+              defaultValue={selectedUnit?.suggestedRentalPrice}
+              required
+              className="w-full px-4 py-2 rounded-lg border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
+              placeholder="e.g. 1500.00"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Status</label>
             <select
-              name="baseRateType"
-              defaultValue={selectedRoom?.baseRateType || BillingCycle.DAILY}
+              name="status"
+              defaultValue={selectedUnit?.status || AssetStatus.VACANT}
               required
               className="w-full px-4 py-2 rounded-lg border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none bg-white"
             >
-              <option value={BillingCycle.DAILY}>Daily</option>
-              <option value={BillingCycle.WEEKLY}>Weekly</option>
-              <option value={BillingCycle.MONTHLY}>Monthly</option>
+              <option value={AssetStatus.VACANT}>Vacant</option>
+              <option value={AssetStatus.OCCUPIED}>Occupied</option>
+              <option value={AssetStatus.MAINTENANCE}>Maintenance</option>
             </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Price (MYR)</label>
-            <input
-              name="baseRate"
-              type="number"
-              defaultValue={selectedRoom?.baseRate}
-              required
-              className="w-full px-4 py-2 rounded-lg border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
-              placeholder="e.g. 150"
-            />
           </div>
         </div>
         <div className="flex justify-end gap-3 pt-4">
@@ -90,7 +91,7 @@ export function RoomModal({ isOpen, onClose, onSubmit, selectedRoom, properties 
             Cancel
           </button>
           <button type="submit" className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition-colors">
-            {selectedRoom ? 'Update Room' : 'Save Room'}
+            {selectedUnit ? 'Update Unit' : 'Save Unit'}
           </button>
         </div>
       </form>

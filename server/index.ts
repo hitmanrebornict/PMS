@@ -10,6 +10,11 @@ import { fileURLToPath } from 'url';
 import authRouter from './routes/auth.js';
 import uploadRouter from './routes/upload.js';
 import remindersRouter from './routes/reminders.js';
+import bookingsRouter from './routes/bookings.js';
+import inventoryRouter from './routes/inventory.js';
+import assetsRouter from './routes/assets.js';
+import customersRouter from './routes/customers.js';
+import leasesRouter, { invoicesRouter, depositsRouter } from './routes/leases.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -36,7 +41,7 @@ app.set('trust proxy', 1);
 
 const globalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 min
-  max: 200,
+  max: isProd ? 500 : 2000,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Too many requests, please try again later.' },
@@ -44,7 +49,7 @@ const globalLimiter = rateLimit({
 
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 10,
+  max: isProd ? 10 : 50,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Too many login attempts, please try again in 15 minutes.' },
@@ -59,6 +64,13 @@ app.use('/api/auth/forgot-password', authLimiter);
 app.use('/api/auth', authRouter);
 app.use('/api/upload', uploadRouter);
 app.use('/api/reminders', remindersRouter);
+app.use('/api/bookings', bookingsRouter);
+app.use('/api/inventory', inventoryRouter);
+app.use('/api/assets', assetsRouter);
+app.use('/api/customers', customersRouter);
+app.use('/api/leases', leasesRouter);
+app.use('/api/invoices', invoicesRouter);
+app.use('/api/deposits', depositsRouter);
 
 // Health check
 app.get('/api/health', (_req, res) => {
