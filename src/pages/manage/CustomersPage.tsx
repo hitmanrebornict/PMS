@@ -1,4 +1,5 @@
-import { Edit2, Plus, Trash2 } from 'lucide-react';
+import { useState } from 'react';
+import { Edit2, Plus, Trash2, Search } from 'lucide-react';
 import { Customer } from '../../types';
 
 interface CustomersPageProps {
@@ -9,6 +10,20 @@ interface CustomersPageProps {
 }
 
 export function CustomersPage({ customers, onAdd, onEdit, onDelete }: CustomersPageProps) {
+  const [search, setSearch] = useState('');
+
+  const filtered = search
+    ? customers.filter(c => {
+        const q = search.toLowerCase();
+        return (
+          c.name.toLowerCase().includes(q) ||
+          c.phoneLocal.includes(q) ||
+          (c.icPassport ?? '').toLowerCase().includes(q) ||
+          (c.email ?? '').toLowerCase().includes(q)
+        );
+      })
+    : customers;
+
   return (
     <div className="space-y-6">
       <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -25,6 +40,18 @@ export function CustomersPage({ customers, onAdd, onEdit, onDelete }: CustomersP
         </button>
       </header>
 
+      {/* Search */}
+      <div className="relative max-w-sm">
+        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+        <input
+          type="text"
+          placeholder="Search by name, phone, IC / passport..."
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          className="w-full pl-9 pr-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        />
+      </div>
+
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse min-w-[900px]">
@@ -40,7 +67,7 @@ export function CustomersPage({ customers, onAdd, onEdit, onDelete }: CustomersP
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {customers.map((customer, idx) => (
+              {filtered.map((customer, idx) => (
                 <tr key={customer.id} className="hover:bg-slate-50 transition-colors">
                   <td className="px-4 py-4 text-slate-400 text-sm">{customer.customerNo ?? idx + 1}</td>
                   <td className="px-4 py-4">
@@ -83,10 +110,10 @@ export function CustomersPage({ customers, onAdd, onEdit, onDelete }: CustomersP
                   </td>
                 </tr>
               ))}
-              {customers.length === 0 && (
+              {filtered.length === 0 && (
                 <tr>
                   <td colSpan={7} className="px-6 py-12 text-center text-slate-400 italic">
-                    No customers found. Add your first customer above.
+                    {search ? 'No customers match your search.' : 'No customers found. Add your first customer above.'}
                   </td>
                 </tr>
               )}

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { FileText, Search } from 'lucide-react';
+import { FileText, Search, X } from 'lucide-react';
 import { Lease, LeaseStatusType } from '../../types';
 
 interface LeasesPageProps {
@@ -23,12 +23,8 @@ const statusColors: Record<LeaseStatusType, string> = {
 };
 
 function getAssetLabel(lease: Lease): string {
-  if (lease.unit) {
-    return `${lease.unit.unitNumber} - ${lease.unit.property.name}`;
-  }
-  if (lease.carpark) {
-    return `Carpark ${lease.carpark.carparkNumber}`;
-  }
+  if (lease.unit) return `${lease.unit.unitNumber} - ${lease.unit.property.name}`;
+  if (lease.carpark) return `Carpark ${lease.carpark.carparkNumber}`;
   return 'Unknown';
 }
 
@@ -39,6 +35,8 @@ function formatDate(dateStr: string): string {
 export function LeasesPage({ leases, onViewDetail }: LeasesPageProps) {
   const [statusFilter, setStatusFilter] = useState<LeaseStatusType | 'ALL'>('ALL');
   const [search, setSearch] = useState('');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
 
   const filtered = leases.filter((l) => {
     if (statusFilter !== 'ALL' && l.status !== statusFilter) return false;
@@ -46,10 +44,22 @@ export function LeasesPage({ leases, onViewDetail }: LeasesPageProps) {
       const q = search.toLowerCase();
       const asset = getAssetLabel(l).toLowerCase();
       const customer = l.customer.name.toLowerCase();
-      return asset.includes(q) || customer.includes(q) || l.customer.phoneLocal.includes(q);
+      if (!asset.includes(q) && !customer.includes(q) && !l.customer.phoneLocal.includes(q)) return false;
+    }
+    if (dateFrom) {
+      const from = new Date(dateFrom).getTime();
+      if (new Date(l.startDate).getTime() < from) return false;
+    }
+    if (dateTo) {
+      const to = new Date(dateTo).getTime();
+      if (new Date(l.endDate).getTime() > to) return false;
     }
     return true;
   });
+
+  const hasDateFilter = dateFrom || dateTo;
+
+  const clearDates = () => { setDateFrom(''); setDateTo(''); };
 
   return (
     <div className="space-y-6">
@@ -60,31 +70,62 @@ export function LeasesPage({ leases, onViewDetail }: LeasesPageProps) {
       </div>
 
       {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-4">
-        <div className="flex gap-2 flex-wrap">
-          {STATUS_FILTERS.map((f) => (
-            <button
-              key={f.value}
-              onClick={() => setStatusFilter(f.value)}
-              className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-                statusFilter === f.value
-                  ? 'bg-indigo-600 text-white'
-                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-              }`}
-            >
-              {f.label}
-            </button>
-          ))}
+      <div className="flex flex-col gap-3">
+        {/* Status + Search row */}
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="flex gap-2 flex-wrap">
+            {STATUS_FILTERS.map((f) => (
+              <button
+                key={f.value}
+                onClick={() => setStatusFilter(f.value)}
+                className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                  statusFilter === f.value
+                    ? 'bg-indigo-600 text-white'
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                }`}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
+          <div className="relative flex-1 max-w-xs">
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Search asset or customer..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full pl-9 pr-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+          </div>
         </div>
-        <div className="relative flex-1 max-w-xs">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input
-            type="text"
-            placeholder="Search asset or customer..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          />
+
+        {/* Date range row */}
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-sm text-slate-500 font-medium">Lease period:</span>
+          <div className="flex items-center gap-2">
+            <input
+              type="date"
+              value={dateFrom}
+              onChange={e => setDateFrom(e.target.value)}
+              className="text-sm border border-slate-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+            <span className="text-slate-400 text-sm">to</span>
+            <input
+              type="date"
+              value={dateTo}
+              onChange={e => setDateTo(e.target.value)}
+              className="text-sm border border-slate-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+          </div>
+          {hasDateFilter && (
+            <button
+              onClick={clearDates}
+              className="flex items-center gap-1 text-xs text-slate-400 hover:text-rose-500 transition-colors"
+            >
+              <X size={13} /> Clear dates
+            </button>
+          )}
         </div>
       </div>
 
@@ -125,7 +166,7 @@ export function LeasesPage({ leases, onViewDetail }: LeasesPageProps) {
                       <div className="text-xs text-slate-400">{lease.customer.phoneLocal}</div>
                     </td>
                     <td className="px-4 py-3 text-slate-600 hidden md:table-cell">
-                      {formatDate(lease.startDate)} - {formatDate(lease.endDate)}
+                      {formatDate(lease.startDate)} – {formatDate(lease.endDate)}
                     </td>
                     <td className="px-4 py-3 text-slate-600 hidden lg:table-cell capitalize">
                       {lease.billingCycle.toLowerCase().replace('_', ' ')}

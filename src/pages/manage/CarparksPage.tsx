@@ -1,4 +1,5 @@
-import { Edit2, Plus, Trash2 } from 'lucide-react';
+import { useState } from 'react';
+import { Edit2, Plus, Trash2, Search } from 'lucide-react';
 import { Carpark, AssetStatus } from '../../types';
 import { formatCurrency } from '../../utils';
 
@@ -16,6 +17,12 @@ const statusColors: Record<AssetStatus, string> = {
 };
 
 export function CarparksPage({ carparks, onAdd, onEdit, onDelete }: CarparksPageProps) {
+  const [search, setSearch] = useState('');
+
+  const filtered = search
+    ? carparks.filter(c => c.carparkNumber.toLowerCase().includes(search.toLowerCase()))
+    : carparks;
+
   return (
     <div className="space-y-6">
       <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -32,6 +39,18 @@ export function CarparksPage({ carparks, onAdd, onEdit, onDelete }: CarparksPage
         </button>
       </header>
 
+      {/* Search */}
+      <div className="relative max-w-sm">
+        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+        <input
+          type="text"
+          placeholder="Search by carpark number..."
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          className="w-full pl-9 pr-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        />
+      </div>
+
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse min-w-[500px]">
@@ -44,7 +63,7 @@ export function CarparksPage({ carparks, onAdd, onEdit, onDelete }: CarparksPage
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {carparks.map(carpark => (
+              {filtered.map(carpark => (
                 <tr key={carpark.id} className="hover:bg-slate-50 transition-colors">
                   <td className="px-6 py-4">
                     <span className="font-bold text-slate-900">{carpark.carparkNumber}</span>
@@ -75,10 +94,10 @@ export function CarparksPage({ carparks, onAdd, onEdit, onDelete }: CarparksPage
                   </td>
                 </tr>
               ))}
-              {carparks.length === 0 && (
+              {filtered.length === 0 && (
                 <tr>
                   <td colSpan={4} className="px-6 py-12 text-center text-slate-400 italic">
-                    No carparks found.
+                    {search ? 'No carparks match your search.' : 'No carparks found.'}
                   </td>
                 </tr>
               )}

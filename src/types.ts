@@ -139,6 +139,53 @@ export interface LeaseDetail extends Lease {
   customer: { id: string; name: string; phoneLocal: string; icPassport: string; email?: string; currentAddress?: string };
 }
 
+// ─── Expense Management ──────────────────────────────────────────────────────
+
+export interface ExpenseType {
+  id: string;
+  name: string;
+  description?: string;
+  isActive: boolean;
+  expenseCount?: number;
+}
+
+export interface Expense {
+  id: string;
+  amount: number;
+  description?: string;
+  expenseDate: string;
+  expenseType: { id: string; name: string };
+  unit: {
+    id: string;
+    unitNumber: string;
+    property: { id: string; name: string };
+  };
+  createdAt: string;
+}
+
+export interface ExpenseSummaryUnit {
+  id: string;
+  unitNumber: string;
+  type: string;
+  status: string;
+  totalExpenses: number;
+  expenses: {
+    id: string;
+    amount: number;
+    description?: string;
+    expenseDate: string;
+    expenseType: { id: string; name: string };
+  }[];
+}
+
+export interface ExpenseSummaryProperty {
+  id: string;
+  name: string;
+  address?: string;
+  totalExpenses: number;
+  units: ExpenseSummaryUnit[];
+}
+
 // ─── Customer Search ────────────────────────────────────────────────────────
 
 export interface CustomerSearchResult {

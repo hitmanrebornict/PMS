@@ -1,11 +1,11 @@
 
-import { Building2, Users, CalendarDays, LayoutDashboard, X, Home, Car, FileText, UserCog } from 'lucide-react';
-
+import { Building2, Users, CalendarDays, LayoutDashboard, X, Home, Car, FileText, UserCog, Receipt } from 'lucide-react';
 
 import { motion, AnimatePresence } from 'motion/react';
 import { SidebarItem } from '../common/SidebarItem';
+import { useAuth } from '../../contexts/AuthContext';
 
-export type ActiveTab = 'dashboard' | 'masterProperties' | 'units' | 'carparks' | 'timeline' | 'leases' | 'customers';
+export type ActiveTab = 'dashboard' | 'masterProperties' | 'units' | 'carparks' | 'timeline' | 'leases' | 'customers' | 'expenses' | 'users';
 
 interface ManageSidebarProps {
   activeTab: ActiveTab;
@@ -15,6 +15,9 @@ interface ManageSidebarProps {
 }
 
 export function ManageSidebar({ activeTab, setActiveTab, isOpen, setIsOpen }: ManageSidebarProps) {
+  const { user } = useAuth();
+  const isSuperAdmin = user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN';
+
   const navigate = (tab: ActiveTab) => {
     setActiveTab(tab);
     setIsOpen(false);
@@ -73,6 +76,15 @@ export function ManageSidebar({ activeTab, setActiveTab, isOpen, setIsOpen }: Ma
             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">People</p>
           </div>
           <SidebarItem icon={<Users size={20} />}           label="Customers"     active={activeTab === 'customers'}   onClick={() => navigate('customers')} />
+          <SidebarItem icon={<Receipt size={20} />}        label="Expenses"      active={activeTab === 'expenses'}    onClick={() => navigate('expenses')} />
+
+          {isSuperAdmin && (
+            <>
+              <div className="my-2 border-t border-slate-100" />
+              <SidebarItem icon={<UserCog size={20} />} label="User Management" active={activeTab === 'users'} onClick={() => navigate('users')} />
+            </>
+          )}
+
         </nav>
 
         {/* User Footer */}

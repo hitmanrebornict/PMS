@@ -102,6 +102,38 @@ Full-stack property management system: **Vite + React 19** frontend with **Expre
 
 In development, Vite proxies `/api` requests to `http://localhost:5000`.
 
+### Tab-Based Navigation
+
+`App.tsx` uses `activeTab` state — there are no React Router sub-routes under `/manage`. React Router only handles three routes: `/`, `/login`, `/manage`. All navigation inside the app is prop-driven.
+
+### No Error Boundary
+
+There is no React `ErrorBoundary`. Any uncaught render error silently unmounts the entire tree (blank page). When debugging blank pages after navigation, check the browser console for JS errors on the new route.
+
+### esbuild Does Not Type-Check
+
+The Dockerfile uses esbuild for both server and frontend production builds. esbuild strips types without checking them — TypeScript mismatches (e.g. wrong prop names) can pass the build and fail silently at runtime. Always run `npm run lint` before building to catch type errors.
+
+### useCallback Dependencies with Date Objects
+
+`addDays()` returns a new `Date` object on every call. If used as a `useCallback` dependency, it causes an infinite re-fetch loop. Compute derived dates **inside** the callback body, not outside:
+
+```typescript
+// ❌ endDate is a new object every render — triggers infinite loop
+const endDate = addDays(startDate, dayCount);
+const fetch = useCallback(async () => { ... }, [apiFetch, startDate, endDate]);
+
+// ✅ compute inside
+const fetch = useCallback(async () => {
+  const end = addDays(startDate, dayCount);
+  ...
+}, [apiFetch, startDate, dayCount]);
+```
+
+### Production CORS
+
+In production (`NODE_ENV=production`), `cors({ origin: false })` — only same-origin requests are accepted. This is correct because Express serves the React build directly.
+
 ## Environment Variables
 
 Required in `.env`:

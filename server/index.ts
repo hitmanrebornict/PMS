@@ -15,6 +15,7 @@ import inventoryRouter from './routes/inventory.js';
 import assetsRouter from './routes/assets.js';
 import customersRouter from './routes/customers.js';
 import leasesRouter, { invoicesRouter, depositsRouter } from './routes/leases.js';
+import expensesRouter from './routes/expenses.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -71,6 +72,7 @@ app.use('/api/customers', customersRouter);
 app.use('/api/leases', leasesRouter);
 app.use('/api/invoices', invoicesRouter);
 app.use('/api/deposits', depositsRouter);
+app.use('/api/expenses', expensesRouter);
 
 // Health check
 app.get('/api/health', (_req, res) => {
