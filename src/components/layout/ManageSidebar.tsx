@@ -1,5 +1,5 @@
 
-import { Building2, Users, CalendarDays, LayoutDashboard, X, Home, Car, FileText, CalendarDays, FileText, LayoutDashboard, } from 'lucide-react';
+import { Building2, Users, CalendarDays, LayoutDashboard, X, Home, Car, FileText, UserCog } from 'lucide-react';
 
 import { motion, AnimatePresence } from 'motion/react';
 import { SidebarItem } from '../common/SidebarItem';
