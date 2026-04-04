@@ -14,8 +14,7 @@ import { useApi } from './hooks/useApi';
 // Layout
 import { ManageSidebar, ActiveTab } from './components/layout/ManageSidebar';
 
-
-import { DashboardPage }    from './pages/manage/DashboardPage';
+// Pages
 import { DashboardPage }         from './pages/manage/DashboardPage';
 import { MasterPropertiesPage }  from './pages/manage/MasterPropertiesPage';
 import { UnitsPage }             from './pages/manage/UnitsPage';
@@ -23,8 +22,6 @@ import { CarparksPage }          from './pages/manage/CarparksPage';
 import { TimelinePage }          from './pages/manage/TimelinePage';
 import { CustomersPage }         from './pages/manage/CustomersPage';
 import { LeasesPage }            from './pages/manage/LeasesPage';
-import { UsersPage }        from './pages/manage/UsersPage';
-
 
 // Modals
 import { MasterPropertyModal }   from './components/manage/MasterPropertyModal';
@@ -288,7 +285,6 @@ export default function App() {
         onDelete={handleDeleteCustomer}
       />
     ),
-    users: <UsersPage />,
   };
 
   // ─── Render ────────────────────────────────────────────────────
