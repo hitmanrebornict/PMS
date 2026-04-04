@@ -7,53 +7,56 @@ import { requireAdmin } from '../middleware/authorize.js';
 const router = Router();
 
 // ─── POST /api/reminders/rental — send rental payment reminders ───────────────
-// Sends reminders to tenants whose rent is due within X days
+// Sends reminders to tenants whose next invoice is due within 7 days
 
 router.post('/rental', authenticate, requireAdmin, async (_req: AuthRequest, res: Response) => {
   try {
     const today = new Date();
     const soon = new Date();
-    soon.setDate(today.getDate() + 7); // remind 7 days before due
+    soon.setDate(today.getDate() + 7);
 
-    // Find active bookings where tenant's rent cycle hits within 7 days
-    const bookings = await prisma.booking.findMany({
+    const pendingInvoices = await prisma.invoice.findMany({
       where: {
-        status: 'ACTIVE',
-        endDate: { gte: today },
+        status: 'PENDING',
+        dueDate: { gte: today, lte: soon },
+        lease: { status: 'ACTIVE' },
       },
       include: {
-        customer: true,
-        room: { include: { property: true } },
+        lease: {
+          include: {
+            customer: true,
+            unit: { include: { property: true } },
+            carpark: true,
+          },
+        },
       },
     });
 
     let sent = 0;
-    for (const booking of bookings) {
-      if (!booking.customer.email) continue;
+    for (const invoice of pendingInvoices) {
+      const { customer, unit, carpark } = invoice.lease;
+      if (!customer.email) continue;
 
-      // Calculate next due date (monthly cycle from startDate)
-      const start = new Date(booking.startDate);
-      const nextDue = new Date(start);
-      while (nextDue <= today) {
-        nextDue.setMonth(nextDue.getMonth() + 1);
-      }
+      const assetLabel = unit
+        ? `${unit.unitNumber} (${unit.property.name})`
+        : carpark
+        ? `Carpark ${carpark.carparkNumber}`
+        : 'Unknown Asset';
 
-      const daysLeft = Math.ceil((nextDue.getTime() - today.getTime()) / 86400000);
-      if (daysLeft <= 7 && daysLeft > 0) {
-        await sendEmail(
-          booking.customer.email,
-          'VersaHome — Rental Payment Reminder',
-          rentalReminderTemplate(
-            booking.customer.name,
-            booking.room.number,
-            booking.room.property.name,
-            nextDue.toLocaleDateString('en-MY'),
-            booking.rentAmount,
-            daysLeft
-          )
-        );
-        sent++;
-      }
+      const daysLeft = Math.ceil((invoice.dueDate.getTime() - today.getTime()) / 86400000);
+
+      await sendEmail(
+        customer.email,
+        'VersaHome — Rental Payment Reminder',
+        rentalReminderTemplate(
+          customer.name,
+          assetLabel,
+          invoice.dueDate.toLocaleDateString('en-MY'),
+          Number(invoice.amount),
+          daysLeft
+        )
+      );
+      sent++;
     }
 
     res.json({ message: `Sent ${sent} rental reminder(s)` });
@@ -71,33 +74,37 @@ router.post('/lease', authenticate, requireAdmin, async (_req: AuthRequest, res:
     const in30 = new Date();
     in30.setDate(today.getDate() + 30);
 
-    const bookings = await prisma.booking.findMany({
+    const leases = await prisma.leaseAgreement.findMany({
       where: {
         status: 'ACTIVE',
         endDate: { gte: today, lte: in30 },
       },
       include: {
         customer: true,
-        room: { include: { property: true } },
+        unit: { include: { property: true } },
+        carpark: true,
       },
     });
 
     let sent = 0;
-    for (const booking of bookings) {
-      if (!booking.customer.email) continue;
+    for (const lease of leases) {
+      if (!lease.customer.email) continue;
 
-      const daysLeft = Math.ceil(
-        (booking.endDate.getTime() - today.getTime()) / 86400000
-      );
+      const assetLabel = lease.unit
+        ? `${lease.unit.unitNumber} (${lease.unit.property.name})`
+        : lease.carpark
+        ? `Carpark ${lease.carpark.carparkNumber}`
+        : 'Unknown Asset';
+
+      const daysLeft = Math.ceil((lease.endDate.getTime() - today.getTime()) / 86400000);
 
       await sendEmail(
-        booking.customer.email,
+        lease.customer.email,
         'VersaHome — Lease Expiry Notice',
         leaseExpiryTemplate(
-          booking.customer.name,
-          booking.room.number,
-          booking.room.property.name,
-          booking.endDate.toLocaleDateString('en-MY'),
+          lease.customer.name,
+          assetLabel,
+          lease.endDate.toLocaleDateString('en-MY'),
           daysLeft
         )
       );

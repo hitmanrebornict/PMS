@@ -53,7 +53,7 @@ router.post(
       return;
     }
 
-    const { propertyId, roomId, bookingId, customerId, maintenanceId, category } = req.body;
+    const { customerId, category } = req.body;
 
     try {
       const isPhoto = req.file.mimetype.startsWith('image/');
@@ -67,11 +67,7 @@ router.post(
           size: req.file.size,
           category: fileCategory,
           uploadedById: req.user!.userId,
-          propertyId: propertyId || null,
-          roomId: roomId || null,
-          bookingId: bookingId || null,
           customerId: customerId || null,
-          maintenanceId: maintenanceId || null,
         },
       });
 
