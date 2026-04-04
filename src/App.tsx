@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import {
   Customer, Lease,
   MasterProperty, Unit, Carpark, UnitType, AssetStatus,
+  ExpenseType, Expense,
 } from './types';
 
 // Hooks
@@ -22,6 +23,8 @@ import { CarparksPage }          from './pages/manage/CarparksPage';
 import { TimelinePage }          from './pages/manage/TimelinePage';
 import { CustomersPage }         from './pages/manage/CustomersPage';
 import { LeasesPage }            from './pages/manage/LeasesPage';
+import { UsersPage }        from './pages/manage/UsersPage';
+import { ExpensesPage }     from './pages/manage/ExpensesPage';
 
 // Modals
 import { MasterPropertyModal }   from './components/manage/MasterPropertyModal';
@@ -30,6 +33,8 @@ import { CarparkModal }          from './components/manage/CarparkModal';
 import { CustomerModal }         from './components/manage/CustomerModal';
 import { LeaseBookingModal }     from './components/manage/LeaseBookingModal';
 import { LeaseDetailModal }      from './components/manage/LeaseDetailModal';
+import { ExpenseTypeModal }      from './components/manage/ExpenseTypeModal';
+import { ExpenseModal }          from './components/manage/ExpenseModal';
 
 export default function App() {
   const { apiFetch } = useApi();
@@ -53,6 +58,8 @@ export default function App() {
   const [isLeaseModalOpen,          setIsLeaseModalOpen]          = useState(false);
   const [isLeaseDetailModalOpen,    setIsLeaseDetailModalOpen]    = useState(false);
   const [selectedLeaseId,           setSelectedLeaseId]           = useState<string | null>(null);
+  const [isExpenseTypeModalOpen,    setIsExpenseTypeModalOpen]    = useState(false);
+  const [isExpenseModalOpen,        setIsExpenseModalOpen]        = useState(false);
 
   // ─── Selected items for edit ───────────────────────────────────
   const [selectedMasterProperty, setSelectedMasterProperty] = useState<MasterProperty | null>(null);
@@ -60,21 +67,28 @@ export default function App() {
   const [selectedCarpark,        setSelectedCarpark]        = useState<Carpark | null>(null);
   const [selectedCustomer,       setSelectedCustomer]       = useState<Customer | null>(null);
   const [leaseModalPrefill,     setLeaseModalPrefill]     = useState<{ assetId: string; assetType: 'unit' | 'carpark'; date: string; suggestedPrice: number } | null>(null);
+  const [selectedExpenseType,   setSelectedExpenseType]   = useState<ExpenseType | null>(null);
+  const [selectedExpense,       setSelectedExpense]       = useState<Expense | null>(null);
+  const [expensePrefillUnitId,  setExpensePrefillUnitId]  = useState<string | null>(null);
+  const [expenseTypes,          setExpenseTypes]          = useState<ExpenseType[]>([]);
+  const [expenseRefreshSignal,  setExpenseRefreshSignal]  = useState(0);
 
   // ─── Load data from API ────────────────────────────────────────
   const refreshData = useCallback(async () => {
-    const [propsRes, unitsRes, carparksRes, customersRes, leasesRes] = await Promise.all([
+    const [propsRes, unitsRes, carparksRes, customersRes, leasesRes, expTypesRes] = await Promise.all([
       apiFetch('/api/assets/properties'),
       apiFetch('/api/assets/units'),
       apiFetch('/api/assets/carparks'),
       apiFetch('/api/customers'),
       apiFetch('/api/leases'),
+      apiFetch('/api/expenses/types'),
     ]);
     if (propsRes.ok) setMasterProperties(await propsRes.json());
     if (unitsRes.ok) setUnits(await unitsRes.json());
     if (carparksRes.ok) setCarparks(await carparksRes.json());
     if (customersRes.ok) setCustomers(await customersRes.json());
     if (leasesRes.ok) setLeases(await leasesRes.json());
+    if (expTypesRes.ok) setExpenseTypes(await expTypesRes.json());
   }, [apiFetch]);
 
   useEffect(() => { refreshData(); }, [refreshData]);
@@ -224,6 +238,97 @@ export default function App() {
     }
   };
 
+  // ─── Expense Type Handlers ─────────────────────────────────────
+
+  const handleSaveExpenseType = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const fd = new FormData(e.currentTarget);
+    const payload = {
+      name:        fd.get('name') as string,
+      description: (fd.get('description') as string) || undefined,
+      isActive:    selectedExpenseType ? (e.currentTarget.querySelector<HTMLInputElement>('#isActive')?.checked ?? true) : true,
+    };
+    const url = selectedExpenseType
+      ? `/api/expenses/types/${selectedExpenseType.id}`
+      : '/api/expenses/types';
+    const method = selectedExpenseType ? 'PUT' : 'POST';
+    const res = await apiFetch(url, { method, body: JSON.stringify(payload) });
+    if (res.ok) {
+      setIsExpenseTypeModalOpen(false);
+      setSelectedExpenseType(null);
+      await refreshData();
+    } else {
+      const data = await res.json();
+      alert(data.error || 'Failed to save expense type');
+    }
+  };
+
+  const handleDeleteExpenseType = async (type: ExpenseType) => {
+    if (!confirm(`Delete expense type "${type.name}"?`)) return;
+    const res = await apiFetch(`/api/expenses/types/${type.id}`, { method: 'DELETE' });
+    if (res.ok) {
+      await refreshData();
+    } else {
+      const data = await res.json();
+      alert(data.error || 'Failed to delete expense type');
+    }
+  };
+
+  // ─── Expense Handlers ──────────────────────────────────────────
+
+  const handleSaveExpense = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const fd = new FormData(e.currentTarget);
+    const payload = {
+      unitId:        fd.get('unitId') as string,
+      expenseTypeId: fd.get('expenseTypeId') as string,
+      amount:        Number(fd.get('amount')),
+      description:   (fd.get('description') as string) || undefined,
+      expenseDate:   fd.get('expenseDate') as string,
+    };
+    const url = selectedExpense
+      ? `/api/expenses/${selectedExpense.id}`
+      : '/api/expenses';
+    const method = selectedExpense ? 'PUT' : 'POST';
+    const res = await apiFetch(url, { method, body: JSON.stringify(payload) });
+    if (res.ok) {
+      setIsExpenseModalOpen(false);
+      setSelectedExpense(null);
+      setExpensePrefillUnitId(null);
+      setExpenseRefreshSignal(s => s + 1);
+    } else {
+      const data = await res.json();
+      alert(data.error || 'Failed to save expense');
+    }
+  };
+
+  const handleDeleteExpense = async (id: string) => {
+    if (!confirm('Delete this expense record?')) return;
+    const res = await apiFetch(`/api/expenses/${id}`, { method: 'DELETE' });
+    if (res.ok) {
+      setExpenseRefreshSignal(s => s + 1);
+    } else {
+      const data = await res.json();
+      alert(data.error || 'Failed to delete expense');
+    }
+  };
+
+  // To edit an expense we need to fetch it first from the summary already loaded in ExpensesPage,
+  // so we accept the full expense object via onEditExpense in the page.
+  const handleEditExpense = async (expenseId: string, unitId: string) => {
+    // Fetch the single expense record
+    const res = await apiFetch(`/api/expenses?unitId=${unitId}`);
+    if (res.ok) {
+      const list: Expense[] = await res.json();
+      const found = list.find(e => e.id === expenseId);
+      if (found) {
+        setSelectedExpense(found);
+        setExpensePrefillUnitId(found.unit.id);
+        setIsExpenseModalOpen(true);
+      }
+    }
+  };
+
   // ─── Page map ──────────────────────────────────────────────────
   const pageContent: Record<ActiveTab, React.ReactNode> = {
     dashboard: (
@@ -283,6 +388,19 @@ export default function App() {
         onAdd={() => { setSelectedCustomer(null); setIsCustomerModalOpen(true); }}
         onEdit={c => { setSelectedCustomer(c); setIsCustomerModalOpen(true); }}
         onDelete={handleDeleteCustomer}
+      />
+    ),
+    users: <UsersPage />,
+    expenses: (
+      <ExpensesPage
+        expenseTypes={expenseTypes}
+        onAddExpense={(unitId) => { setSelectedExpense(null); setExpensePrefillUnitId(unitId ?? null); setIsExpenseModalOpen(true); }}
+        onEditExpense={handleEditExpense}
+        onDeleteExpense={(id) => handleDeleteExpense(id)}
+        onAddType={() => { setSelectedExpenseType(null); setIsExpenseTypeModalOpen(true); }}
+        onEditType={t => { setSelectedExpenseType(t); setIsExpenseTypeModalOpen(true); }}
+        onDeleteType={handleDeleteExpenseType}
+        refreshSignal={expenseRefreshSignal}
       />
     ),
   };
@@ -377,6 +495,22 @@ export default function App() {
         onClose={() => { setIsLeaseDetailModalOpen(false); setSelectedLeaseId(null); }}
         leaseId={selectedLeaseId}
         onAction={() => { refreshData(); }}
+      />
+      <ExpenseTypeModal
+        isOpen={isExpenseTypeModalOpen}
+        onClose={() => { setIsExpenseTypeModalOpen(false); setSelectedExpenseType(null); }}
+        onSubmit={handleSaveExpenseType}
+        selectedType={selectedExpenseType}
+      />
+      <ExpenseModal
+        isOpen={isExpenseModalOpen}
+        onClose={() => { setIsExpenseModalOpen(false); setSelectedExpense(null); setExpensePrefillUnitId(null); }}
+        onSubmit={handleSaveExpense}
+        selectedExpense={selectedExpense}
+        expenseTypes={expenseTypes}
+        properties={masterProperties}
+        units={units}
+        prefillUnitId={expensePrefillUnitId}
       />
     </div>
   );

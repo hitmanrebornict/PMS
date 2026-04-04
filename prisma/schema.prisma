@@ -281,6 +281,7 @@ model Unit {
 
   property MasterProperty  @relation(fields: [propertyId], references: [id], onDelete: Cascade)
   leases   LeaseAgreement[]
+  expenses Expense[]
 
   @@unique([propertyId, unitNumber])
   @@map("units")
@@ -355,6 +356,37 @@ model Invoice {
   lease LeaseAgreement @relation(fields: [leaseId], references: [id], onDelete: Cascade)
 
   @@map("invoices")
+}
+
+// ─── Expense Management ───────────────────────────────────────────────────────
+
+model ExpenseType {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  expenses Expense[]
+
+  @@map("expense_types")
+}
+
+model Expense {
+  id            String      @id @default(uuid())
+  unitId        String
+  expenseTypeId String
+  amount        Decimal     @db.Decimal(10, 2)
+  description   String?
+  expenseDate   DateTime
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  unit        Unit        @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  expenseType ExpenseType @relation(fields: [expenseTypeId], references: [id], onDelete: Restrict)
+
+  @@map("expenses")
 }
 
 // ─── File Storage ─────────────────────────────────────────────────────────────

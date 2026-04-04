@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { ChevronLeft, ChevronRight, Plus, RefreshCw } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, RefreshCw, CalendarPlus } from 'lucide-react';
 import { useApi } from '../../hooks/useApi';
 import { TimelineData, TimelineLease } from '../../types';
 
@@ -137,6 +137,24 @@ export function TimelinePage({ onBookAsset }: TimelinePageProps) {
 
   const today = getToday();
 
+  // Book modal state (standalone — no grid click needed)
+  const [bookModalOpen, setBookModalOpen] = useState(false);
+  const [bookAssetType, setBookAssetType] = useState<'unit' | 'carpark'>('unit');
+  const [bookAssetId, setBookAssetId] = useState('');
+
+  const unitRows = rows.filter(r => r.type === 'unit');
+  const carparkRows = rows.filter(r => r.type === 'carpark');
+  const bookableRows = bookAssetType === 'unit' ? unitRows : carparkRows;
+
+  const handleBookSubmit = () => {
+    if (!bookAssetId) return;
+    const asset = rows.find(r => r.id === bookAssetId);
+    if (!asset) return;
+    setBookModalOpen(false);
+    onBookAsset({ id: asset.id, type: asset.type, date: toDateStr(today), suggestedPrice: asset.suggestedPrice });
+    setBookAssetId('');
+  };
+
   return (
     <div className="space-y-4">
       {/* Header */}
@@ -146,6 +164,13 @@ export function TimelinePage({ onBookAsset }: TimelinePageProps) {
           <p className="text-slate-500">View asset occupancy and create bookings.</p>
         </div>
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => { setBookAssetId(''); setBookModalOpen(true); }}
+            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium text-sm transition-colors"
+          >
+            <CalendarPlus size={16} />
+            Book Asset
+          </button>
           <button onClick={fetchTimeline} className="p-2 text-slate-500 hover:bg-slate-100 rounded-lg transition-colors" title="Refresh">
             <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
           </button>
@@ -323,6 +348,78 @@ export function TimelinePage({ onBookAsset }: TimelinePageProps) {
           Click empty cell to book
         </div>
       </div>
+
+      {/* ── Standalone Book Modal ─────────────────────────────────── */}
+      {bookModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" onClick={() => setBookModalOpen(false)} />
+          <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-md p-6 space-y-5">
+            <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+              <CalendarPlus size={20} className="text-indigo-600" />
+              Book Asset
+            </h2>
+
+            {/* Asset type toggle */}
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">Asset Type</label>
+              <div className="flex bg-slate-100 rounded-lg p-1 w-fit">
+                <button
+                  onClick={() => { setBookAssetType('unit'); setBookAssetId(''); }}
+                  className={`px-4 py-1.5 text-sm rounded-md font-medium transition-colors ${bookAssetType === 'unit' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500'}`}
+                >
+                  Unit
+                </button>
+                <button
+                  onClick={() => { setBookAssetType('carpark'); setBookAssetId(''); }}
+                  className={`px-4 py-1.5 text-sm rounded-md font-medium transition-colors ${bookAssetType === 'carpark' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500'}`}
+                >
+                  Carpark
+                </button>
+              </div>
+            </div>
+
+            {/* Asset selector */}
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">
+                Select {bookAssetType === 'unit' ? 'Unit' : 'Carpark'} <span className="text-rose-500">*</span>
+              </label>
+              <select
+                value={bookAssetId}
+                onChange={e => setBookAssetId(e.target.value)}
+                className="w-full px-4 py-2 rounded-lg border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none bg-white text-sm"
+              >
+                <option value="">Select an asset...</option>
+                {bookableRows.map(r => (
+                  <option key={r.id} value={r.id}>
+                    {r.type === 'unit' ? `${r.label} (${r.group})` : r.label}
+                  </option>
+                ))}
+              </select>
+              {bookableRows.length === 0 && (
+                <p className="text-xs text-slate-400 mt-1">
+                  No {bookAssetType === 'unit' ? 'units' : 'carparks'} available in the current timeline range.
+                </p>
+              )}
+            </div>
+
+            <div className="flex justify-end gap-3 pt-1">
+              <button
+                onClick={() => setBookModalOpen(false)}
+                className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg font-medium text-sm transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleBookSubmit}
+                disabled={!bookAssetId}
+                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-lg font-medium text-sm transition-colors"
+              >
+                Continue to Booking
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
