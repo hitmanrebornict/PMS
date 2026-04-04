@@ -17,21 +17,6 @@ enum Role {
   VIEWER
 }
 
-enum PropertyType {
-  APARTMENT
-  CONDO
-  HOUSE
-  STUDIO
-  OFFICE
-}
-
-enum RoomStatus {
-  AVAILABLE
-  OCCUPIED
-  MAINTENANCE
-  RESERVED
-}
-
 enum UnitType {
   STUDIO
   ONE_BEDROOM
@@ -44,19 +29,6 @@ enum AssetStatus {
   VACANT
   OCCUPIED
   MAINTENANCE
-}
-
-enum BookingStatus {
-  ACTIVE
-  EXPIRED
-  TERMINATED
-  PENDING
-}
-
-enum MaintenanceStatus {
-  OPEN
-  IN_PROGRESS
-  RESOLVED
 }
 
 enum FileCategory {
@@ -155,45 +127,7 @@ model AuditLog {
   @@map("audit_logs")
 }
 
-// ─── Property Management ──────────────────────────────────────────────────────
-
-model Property {
-  id        String       @id @default(uuid())
-  name      String
-  address   String
-  city      String
-  type      PropertyType @default(APARTMENT)
-  units     Int          @default(1)
-  isActive  Boolean      @default(true)
-  createdAt DateTime     @default(now())
-  updatedAt DateTime     @updatedAt
-
-  rooms Room[]
-  files File[]
-
-  @@map("properties")
-}
-
-model Room {
-  id         String     @id @default(uuid())
-  propertyId String
-  number     String
-  floor      Int?
-  type       String
-  rentAmount Float
-  status     RoomStatus @default(AVAILABLE)
-  notes      String?
-  createdAt  DateTime   @default(now())
-  updatedAt  DateTime   @updatedAt
-
-  property         Property          @relation(fields: [propertyId], references: [id], onDelete: Cascade)
-  bookings         Booking[]
-  maintenanceLogs  MaintenanceLog[]
-  files            File[]
-
-  @@unique([propertyId, number])
-  @@map("rooms")
-}
+// ─── Customer ─────────────────────────────────────────────────────────────────
 
 model Customer {
   id             String   @id @default(uuid())
@@ -210,52 +144,13 @@ model Customer {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  bookings Booking[]
-  leases   LeaseAgreement[]
-  files    File[]
+  leases LeaseAgreement[]
+  files  File[]
 
   @@map("customers")
 }
 
-model Booking {
-  id          String        @id @default(uuid())
-  roomId      String
-  customerId  String
-  startDate   DateTime
-  endDate     DateTime
-  rentAmount  Float
-  deposit     Float         @default(0)
-  status      BookingStatus @default(ACTIVE)
-  notes       String?
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
-
-  room     Room     @relation(fields: [roomId], references: [id], onDelete: Restrict)
-  customer Customer @relation(fields: [customerId], references: [id], onDelete: Restrict)
-  files    File[]
-
-  @@map("bookings")
-}
-
-model MaintenanceLog {
-  id          String            @id @default(uuid())
-  roomId      String
-  title       String
-  description String
-  status      MaintenanceStatus @default(OPEN)
-  priority    String            @default("NORMAL")
-  cost        Float?
-  resolvedAt  DateTime?
-  createdAt   DateTime          @default(now())
-  updatedAt   DateTime          @updatedAt
-
-  room  Room   @relation(fields: [roomId], references: [id], onDelete: Cascade)
-  files File[]
-
-  @@map("maintenance_logs")
-}
-
-// ─── Asset Management ─────────────────────────────────────────────────────
+// ─── Asset Management ─────────────────────────────────────────────────────────
 
 model MasterProperty {
   id        String   @id @default(uuid())
@@ -300,7 +195,7 @@ model Carpark {
   @@map("carparks")
 }
 
-// ─── Lease Management ─────────────────────────────────────────────────────
+// ─── Lease Management ─────────────────────────────────────────────────────────
 
 model LeaseAgreement {
   id           String       @id @default(uuid())
@@ -399,19 +294,11 @@ model File {
   size         Int
   category     FileCategory @default(DOCUMENT)
   uploadedById String
-  propertyId   String?
-  roomId       String?
-  bookingId    String?
   customerId   String?
-  maintenanceId String?
   createdAt    DateTime     @default(now())
 
-  uploadedBy    User            @relation(fields: [uploadedById], references: [id])
-  property      Property?       @relation(fields: [propertyId], references: [id])
-  room          Room?           @relation(fields: [roomId], references: [id])
-  booking       Booking?        @relation(fields: [bookingId], references: [id])
-  customer      Customer?       @relation(fields: [customerId], references: [id])
-  maintenanceLog MaintenanceLog? @relation(fields: [maintenanceId], references: [id])
+  uploadedBy User      @relation(fields: [uploadedById], references: [id])
+  customer   Customer? @relation(fields: [customerId], references: [id])
 
   @@map("files")
 }

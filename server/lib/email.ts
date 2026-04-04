@@ -37,8 +37,7 @@ export function passwordResetTemplate(resetUrl: string, name: string) {
 
 export function rentalReminderTemplate(
   tenantName: string,
-  roomNumber: string,
-  propertyName: string,
+  assetLabel: string,
   dueDate: string,
   amount: number,
   daysLeft: number
@@ -50,18 +49,14 @@ export function rentalReminderTemplate(
       <p>This is a friendly reminder that your rental payment is due in <strong>${daysLeft} day(s)</strong>.</p>
       <table style="width:100%;border-collapse:collapse;margin:16px 0;">
         <tr style="background:#ede1cf;">
-          <td style="padding:8px 12px;font-weight:bold;">Property</td>
-          <td style="padding:8px 12px;">${propertyName}</td>
+          <td style="padding:8px 12px;font-weight:bold;">Unit / Asset</td>
+          <td style="padding:8px 12px;">${assetLabel}</td>
         </tr>
         <tr>
-          <td style="padding:8px 12px;font-weight:bold;">Room</td>
-          <td style="padding:8px 12px;">${roomNumber}</td>
-        </tr>
-        <tr style="background:#ede1cf;">
           <td style="padding:8px 12px;font-weight:bold;">Due Date</td>
           <td style="padding:8px 12px;">${dueDate}</td>
         </tr>
-        <tr>
+        <tr style="background:#ede1cf;">
           <td style="padding:8px 12px;font-weight:bold;">Amount</td>
           <td style="padding:8px 12px;">RM ${amount.toFixed(2)}</td>
         </tr>
@@ -74,8 +69,7 @@ export function rentalReminderTemplate(
 
 export function leaseExpiryTemplate(
   tenantName: string,
-  roomNumber: string,
-  propertyName: string,
+  assetLabel: string,
   expiryDate: string,
   daysLeft: number
 ) {
@@ -86,12 +80,8 @@ export function leaseExpiryTemplate(
       <p>Your tenancy agreement is expiring in <strong>${daysLeft} day(s)</strong>.</p>
       <table style="width:100%;border-collapse:collapse;margin:16px 0;">
         <tr style="background:#ede1cf;">
-          <td style="padding:8px 12px;font-weight:bold;">Property</td>
-          <td style="padding:8px 12px;">${propertyName}</td>
-        </tr>
-        <tr>
-          <td style="padding:8px 12px;font-weight:bold;">Room</td>
-          <td style="padding:8px 12px;">${roomNumber}</td>
+          <td style="padding:8px 12px;font-weight:bold;">Unit / Asset</td>
+          <td style="padding:8px 12px;">${assetLabel}</td>
         </tr>
         <tr style="background:#ede1cf;">
           <td style="padding:8px 12px;font-weight:bold;">Expiry Date</td>
