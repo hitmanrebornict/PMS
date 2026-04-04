@@ -22,8 +22,6 @@ import { CarparksPage }          from './pages/manage/CarparksPage';
 import { TimelinePage }          from './pages/manage/TimelinePage';
 import { CustomersPage }         from './pages/manage/CustomersPage';
 import { LeasesPage }            from './pages/manage/LeasesPage';
-import { UsersPage }        from './pages/manage/UsersPage';
-
 
 // Modals
 import { MasterPropertyModal }   from './components/manage/MasterPropertyModal';
@@ -287,7 +285,6 @@ export default function App() {
         onDelete={handleDeleteCustomer}
       />
     ),
-    users: <UsersPage />,
   };
 
   // ─── Render ────────────────────────────────────────────────────

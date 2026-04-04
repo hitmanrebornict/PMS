@@ -36,14 +36,6 @@ const createUserSchema = z.object({
   role: z.enum(['SUPER_ADMIN', 'ADMIN', 'MANAGER', 'VIEWER']).default('VIEWER'),
 });
 
-const updateUserSchema = z.object({
-  name: z.string().min(1).optional(),
-  email: z.string().email().optional(),
-  role: z.enum(['SUPER_ADMIN', 'ADMIN', 'MANAGER', 'VIEWER']).optional(),
-  isActive: z.boolean().optional(),
-  password: z.string().optional(),
-});
-
 const forgotSchema = z.object({ email: z.string().email() });
 
 const resetSchema = z.object({
@@ -329,120 +321,6 @@ router.get(
       orderBy: { createdAt: 'desc' },
     });
     res.json(users);
-  }
-);
-
-// ─── PUT /api/auth/users/:id — SUPER_ADMIN only ───────────────────────────────
-
-router.put(
-  '/users/:id',
-  authenticate,
-  requireSuperAdmin,
-  async (req: AuthRequest, res: Response) => {
-    const parsed = updateUserSchema.safeParse(req.body);
-    if (!parsed.success) {
-      res.status(400).json({ error: parsed.error.flatten() });
-      return;
-    }
-
-    const { name, email, role, isActive, password } = parsed.data;
-    const { id } = req.params;
-
-    // Prevent deactivating or demoting yourself
-    if (id === req.user!.userId && isActive === false) {
-      res.status(400).json({ error: 'Cannot deactivate your own account' });
-      return;
-    }
-
-    try {
-      const user = await prisma.user.findUnique({ where: { id } });
-      if (!user) {
-        res.status(404).json({ error: 'User not found' });
-        return;
-      }
-
-      // Check email uniqueness if changing
-      if (email && email !== user.email) {
-        const exists = await prisma.user.findUnique({ where: { email } });
-        if (exists) {
-          res.status(409).json({ error: 'Email already in use' });
-          return;
-        }
-      }
-
-      const updateData: Record<string, unknown> = {};
-      if (name !== undefined) updateData.name = name;
-      if (email !== undefined) updateData.email = email;
-      if (role !== undefined) updateData.role = role;
-      if (isActive !== undefined) updateData.isActive = isActive;
-      if (password !== undefined) {
-        const strengthError = validatePasswordStrength(password);
-        if (strengthError) {
-          res.status(400).json({ error: strengthError });
-          return;
-        }
-        updateData.passwordHash = await hashPassword(password);
-      }
-
-      const updated = await prisma.user.update({
-        where: { id },
-        data: updateData,
-        select: { id: true, email: true, name: true, role: true, isActive: true, createdAt: true },
-      });
-
-      // Revoke all refresh tokens when deactivating
-      if (isActive === false) {
-        await prisma.refreshToken.updateMany({
-          where: { userId: id },
-          data: { isRevoked: true },
-        });
-      }
-
-      res.json(updated);
-    } catch (err) {
-      console.error('Update user error:', err);
-      res.status(500).json({ error: 'Internal server error' });
-    }
-  }
-);
-
-// ─── DELETE /api/auth/users/:id — soft delete, SUPER_ADMIN only ───────────────
-
-router.delete(
-  '/users/:id',
-  authenticate,
-  requireSuperAdmin,
-  async (req: AuthRequest, res: Response) => {
-    const { id } = req.params;
-
-    if (id === req.user!.userId) {
-      res.status(400).json({ error: 'Cannot delete your own account' });
-      return;
-    }
-
-    try {
-      const user = await prisma.user.findUnique({ where: { id } });
-      if (!user) {
-        res.status(404).json({ error: 'User not found' });
-        return;
-      }
-
-      // Soft delete: deactivate and revoke all sessions
-      await prisma.user.update({
-        where: { id },
-        data: { isActive: false },
-      });
-
-      await prisma.refreshToken.updateMany({
-        where: { userId: id },
-        data: { isRevoked: true },
-      });
-
-      res.json({ message: 'User deactivated successfully' });
-    } catch (err) {
-      console.error('Delete user error:', err);
-      res.status(500).json({ error: 'Internal server error' });
-    }
   }
 );
 
