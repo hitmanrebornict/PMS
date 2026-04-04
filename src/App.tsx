@@ -25,6 +25,7 @@ import { CustomersPage }         from './pages/manage/CustomersPage';
 import { LeasesPage }            from './pages/manage/LeasesPage';
 import { UsersPage }        from './pages/manage/UsersPage';
 import { ExpensesPage }     from './pages/manage/ExpensesPage';
+import { ProfitPage }       from './pages/manage/ProfitPage';
 
 // Modals
 import { MasterPropertyModal }   from './components/manage/MasterPropertyModal';
@@ -391,6 +392,7 @@ export default function App() {
       />
     ),
     users: <UsersPage />,
+    profit: <ProfitPage />,
     expenses: (
       <ExpensesPage
         expenseTypes={expenseTypes}
