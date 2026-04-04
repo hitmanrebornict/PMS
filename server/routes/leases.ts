@@ -180,6 +180,105 @@ router.patch('/:id/complete', authenticate, requireManager, async (req: AuthRequ
   }
 });
 
+// ─── PATCH /:id — Update editable lease fields ────────────────────────────
+
+const updateLeaseSchema = z.object({
+  unitPrice: z.number().positive().optional(),
+  endDate: z.string().optional(),
+  notes: z.string().optional(),
+});
+
+router.patch('/:id', authenticate, requireManager, async (req: AuthRequest, res: Response) => {
+  const parsed = updateLeaseSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: 'Invalid request', details: parsed.error.flatten() });
+    return;
+  }
+
+  try {
+    const lease = await prisma.leaseAgreement.findUnique({ where: { id: req.params.id } });
+    if (!lease) {
+      res.status(404).json({ error: 'Lease not found' });
+      return;
+    }
+    if (lease.status !== 'ACTIVE' && lease.status !== 'UPCOMING') {
+      res.status(400).json({ error: 'Only ACTIVE or UPCOMING leases can be edited' });
+      return;
+    }
+
+    const data: any = {};
+    if (parsed.data.notes !== undefined) data.notes = parsed.data.notes;
+    if (parsed.data.unitPrice !== undefined) {
+      const { Decimal } = await import('@prisma/client/runtime/library');
+      data.unitPrice = new Decimal(parsed.data.unitPrice);
+    }
+    if (parsed.data.endDate !== undefined) {
+      const endDate = new Date(parsed.data.endDate);
+      if (isNaN(endDate.getTime())) {
+        res.status(400).json({ error: 'Invalid end date' });
+        return;
+      }
+      if (endDate <= lease.startDate) {
+        res.status(400).json({ error: 'End date must be after start date' });
+        return;
+      }
+      data.endDate = endDate;
+    }
+
+    const updated = await prisma.leaseAgreement.update({ where: { id: req.params.id }, data });
+    res.json(serializeLease(updated));
+  } catch (err) {
+    console.error('Update lease error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ─── POST /:id/invoices — Add a new invoice to a lease ───────────────────
+
+const addInvoiceSchema = z.object({
+  periodStart: z.string().min(1),
+  periodEnd: z.string().min(1),
+  amount: z.number().positive(),
+  dueDate: z.string().min(1),
+});
+
+router.post('/:id/invoices', authenticate, requireManager, async (req: AuthRequest, res: Response) => {
+  const parsed = addInvoiceSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: 'Invalid request', details: parsed.error.flatten() });
+    return;
+  }
+
+  try {
+    const lease = await prisma.leaseAgreement.findUnique({ where: { id: req.params.id } });
+    if (!lease) {
+      res.status(404).json({ error: 'Lease not found' });
+      return;
+    }
+    if (lease.status !== 'ACTIVE' && lease.status !== 'UPCOMING') {
+      res.status(400).json({ error: 'Cannot add invoices to a terminated or completed lease' });
+      return;
+    }
+
+    const { Decimal } = await import('@prisma/client/runtime/library');
+    const invoice = await prisma.invoice.create({
+      data: {
+        leaseId: lease.id,
+        periodStart: new Date(parsed.data.periodStart),
+        periodEnd: new Date(parsed.data.periodEnd),
+        amount: new Decimal(parsed.data.amount),
+        dueDate: new Date(parsed.data.dueDate),
+        status: 'PENDING',
+      },
+    });
+
+    res.status(201).json({ ...invoice, amount: Number(invoice.amount) });
+  } catch (err) {
+    console.error('Add invoice error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // ─── GET /:id/invoices — List invoices for a lease ────────────────────────
 
 router.get('/:id/invoices', authenticate, requireViewer, async (req: AuthRequest, res: Response) => {
@@ -199,6 +298,49 @@ router.get('/:id/invoices', authenticate, requireViewer, async (req: AuthRequest
 // ─── Invoices Router ──────────────────────────────────────────────────────
 
 const invoicesRouter = Router();
+
+// PATCH /api/invoices/:id — Edit invoice amount/dueDate
+const editInvoiceSchema = z.object({
+  amount: z.number().positive().optional(),
+  dueDate: z.string().optional(),
+  periodStart: z.string().optional(),
+  periodEnd: z.string().optional(),
+});
+
+invoicesRouter.patch('/:id', authenticate, requireManager, async (req: AuthRequest, res: Response) => {
+  const parsed = editInvoiceSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: 'Invalid request', details: parsed.error.flatten() });
+    return;
+  }
+
+  try {
+    const invoice = await prisma.invoice.findUnique({ where: { id: req.params.id } });
+    if (!invoice) {
+      res.status(404).json({ error: 'Invoice not found' });
+      return;
+    }
+    if (invoice.status === 'PAID' || invoice.status === 'CANCELLED') {
+      res.status(400).json({ error: 'Cannot edit a PAID or CANCELLED invoice' });
+      return;
+    }
+
+    const data: any = {};
+    if (parsed.data.amount !== undefined) {
+      const { Decimal } = await import('@prisma/client/runtime/library');
+      data.amount = new Decimal(parsed.data.amount);
+    }
+    if (parsed.data.dueDate) data.dueDate = new Date(parsed.data.dueDate);
+    if (parsed.data.periodStart) data.periodStart = new Date(parsed.data.periodStart);
+    if (parsed.data.periodEnd) data.periodEnd = new Date(parsed.data.periodEnd);
+
+    const updated = await prisma.invoice.update({ where: { id: req.params.id }, data });
+    res.json({ ...updated, amount: toNumber(updated.amount) });
+  } catch (err) {
+    console.error('Edit invoice error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
 
 // PATCH /api/invoices/:id/pay — Mark invoice as PAID
 invoicesRouter.patch('/:id/pay', authenticate, requireManager, async (req: AuthRequest, res: Response) => {
