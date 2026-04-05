@@ -26,9 +26,10 @@ const expenseSchema = z.object({
 
 router.get('/types', authenticate, requireViewer, async (_req: AuthRequest, res: Response) => {
   try {
-    const types = await prisma.expenseType.findMany({
+    const types: any[] = await (prisma.expenseType.findMany as any)({
+      where: { isActive: true },
       orderBy: { name: 'asc' },
-      include: { _count: { select: { expenses: true } } },
+      include: { _count: { select: { expenses: { where: { isActive: true } } } } },
     });
     res.json(types.map(t => ({
       id: t.id,
@@ -90,15 +91,11 @@ router.put('/types/:id', authenticate, requireManager, async (req: AuthRequest, 
 
 router.delete('/types/:id', authenticate, requireManager, async (req: AuthRequest, res: Response) => {
   try {
-    await prisma.expenseType.delete({ where: { id: req.params.id } });
-    res.status(204).send();
+    await prisma.expenseType.update({ where: { id: req.params.id }, data: { isActive: false } });
+    res.json({ success: true });
   } catch (err: any) {
     if (err.code === 'P2025') {
       res.status(404).json({ error: 'Expense type not found' });
-      return;
-    }
-    if (err.code === 'P2003') {
-      res.status(409).json({ error: 'Cannot delete: expense type is in use' });
       return;
     }
     console.error('Delete expense type error:', err);
@@ -112,8 +109,9 @@ router.delete('/types/:id', authenticate, requireManager, async (req: AuthReques
 router.get('/', authenticate, requireViewer, async (req: AuthRequest, res: Response) => {
   const { unitId, propertyId } = req.query as { unitId?: string; propertyId?: string };
   try {
-    const expenses = await prisma.expense.findMany({
+    const expenses: any[] = await (prisma.expense.findMany as any)({
       where: {
+        isActive: true,
         ...(unitId ? { unitId } : {}),
         ...(propertyId ? { unit: { propertyId } } : {}),
       },
@@ -151,11 +149,14 @@ router.get('/', authenticate, requireViewer, async (req: AuthRequest, res: Respo
 // GET /api/expenses/summary — expenses grouped by property → unit
 router.get('/summary', authenticate, requireViewer, async (_req: AuthRequest, res: Response) => {
   try {
-    const properties = await prisma.masterProperty.findMany({
+    const properties: any[] = await (prisma.masterProperty.findMany as any)({
+      where: { isActive: true },
       include: {
         units: {
+          where: { isActive: true },
           include: {
             expenses: {
+              where: { isActive: true },
               include: { expenseType: { select: { id: true, name: true } } },
               orderBy: { expenseDate: 'desc' },
             },
@@ -298,8 +299,8 @@ router.put('/:id', authenticate, requireManager, async (req: AuthRequest, res: R
 
 router.delete('/:id', authenticate, requireManager, async (req: AuthRequest, res: Response) => {
   try {
-    await prisma.expense.delete({ where: { id: req.params.id } });
-    res.status(204).send();
+    await prisma.expense.update({ where: { id: req.params.id }, data: { isActive: false } as any });
+    res.json({ success: true });
   } catch (err: any) {
     if (err.code === 'P2025') {
       res.status(404).json({ error: 'Expense not found' });

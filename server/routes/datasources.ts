@@ -17,8 +17,9 @@ const db = prisma as any;
 router.get('/', authenticate, requireViewer, async (_req: AuthRequest, res: Response) => {
   try {
     const sources = await db.dataSource.findMany({
+      where: { isActive: true },
       orderBy: { name: 'asc' },
-      include: { _count: { select: { customers: true } } },
+      include: { _count: { select: { customers: { where: { isActive: true } } } } },
     });
     res.json(sources.map((s: any) => ({
       id: s.id,
@@ -80,7 +81,7 @@ router.put('/:id', authenticate, requireManager, async (req: AuthRequest, res: R
 
 router.delete('/:id', authenticate, requireManager, async (req: AuthRequest, res: Response) => {
   try {
-    await db.dataSource.delete({ where: { id: req.params.id } });
+    await db.dataSource.update({ where: { id: req.params.id }, data: { isActive: false } });
     res.json({ success: true });
   } catch (err: any) {
     if (err.code === 'P2025') {

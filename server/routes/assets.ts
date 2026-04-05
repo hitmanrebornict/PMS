@@ -31,8 +31,9 @@ const createCarparkSchema = z.object({
 
 router.get('/properties', authenticate, requireViewer, async (_req: AuthRequest, res: Response) => {
   try {
-    const properties = await prisma.masterProperty.findMany({
-      include: { _count: { select: { units: true } } },
+    const properties: any[] = await (prisma.masterProperty.findMany as any)({
+      where: { isActive: true },
+      include: { _count: { select: { units: { where: { isActive: true } } } } },
       orderBy: { name: 'asc' },
     });
     res.json(properties.map(p => ({
@@ -86,15 +87,21 @@ router.put('/properties/:id', authenticate, requireManager, async (req: AuthRequ
 
 router.delete('/properties/:id', authenticate, requireManager, async (req: AuthRequest, res: Response) => {
   try {
-    await prisma.masterProperty.delete({ where: { id: req.params.id } });
+    // Soft-delete the property and all its units
+    await prisma.$transaction([
+      (prisma.unit.updateMany as any)({
+        where: { propertyId: req.params.id },
+        data: { isActive: false },
+      }),
+      (prisma.masterProperty.update as any)({
+        where: { id: req.params.id },
+        data: { isActive: false },
+      }),
+    ]);
     res.json({ success: true });
   } catch (err: any) {
     if (err.code === 'P2025') {
       res.status(404).json({ error: 'Property not found' });
-      return;
-    }
-    if (err.code === 'P2003') {
-      res.status(409).json({ error: 'Cannot delete property with active leases on its units' });
       return;
     }
     console.error('Delete property error:', err);
@@ -106,7 +113,8 @@ router.delete('/properties/:id', authenticate, requireManager, async (req: AuthR
 
 router.get('/units', authenticate, requireViewer, async (_req: AuthRequest, res: Response) => {
   try {
-    const units = await prisma.unit.findMany({
+    const units: any[] = await (prisma.unit.findMany as any)({
+      where: { isActive: true },
       include: { property: { select: { name: true } } },
       orderBy: [{ property: { name: 'asc' } }, { unitNumber: 'asc' }],
     });
@@ -190,15 +198,11 @@ router.put('/units/:id', authenticate, requireManager, async (req: AuthRequest, 
 
 router.delete('/units/:id', authenticate, requireManager, async (req: AuthRequest, res: Response) => {
   try {
-    await prisma.unit.delete({ where: { id: req.params.id } });
+    await (prisma.unit.update as any)({ where: { id: req.params.id }, data: { isActive: false } });
     res.json({ success: true });
   } catch (err: any) {
     if (err.code === 'P2025') {
       res.status(404).json({ error: 'Unit not found' });
-      return;
-    }
-    if (err.code === 'P2003') {
-      res.status(409).json({ error: 'Cannot delete unit with active leases' });
       return;
     }
     console.error('Delete unit error:', err);
@@ -210,7 +214,8 @@ router.delete('/units/:id', authenticate, requireManager, async (req: AuthReques
 
 router.get('/carparks', authenticate, requireViewer, async (_req: AuthRequest, res: Response) => {
   try {
-    const carparks = await prisma.carpark.findMany({
+    const carparks: any[] = await (prisma.carpark.findMany as any)({
+      where: { isActive: true },
       orderBy: { carparkNumber: 'asc' },
     });
     res.json(carparks.map(c => ({
@@ -282,15 +287,11 @@ router.put('/carparks/:id', authenticate, requireManager, async (req: AuthReques
 
 router.delete('/carparks/:id', authenticate, requireManager, async (req: AuthRequest, res: Response) => {
   try {
-    await prisma.carpark.delete({ where: { id: req.params.id } });
+    await (prisma.carpark.update as any)({ where: { id: req.params.id }, data: { isActive: false } });
     res.json({ success: true });
   } catch (err: any) {
     if (err.code === 'P2025') {
       res.status(404).json({ error: 'Carpark not found' });
-      return;
-    }
-    if (err.code === 'P2003') {
-      res.status(409).json({ error: 'Cannot delete carpark with active leases' });
       return;
     }
     console.error('Delete carpark error:', err);

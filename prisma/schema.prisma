@@ -156,6 +156,7 @@ model Customer {
   whatsappNumber String?
   remark         String?
   dataSourceId   String?
+  isActive       Boolean     @default(true)
   createdAt      DateTime    @default(now())
   updatedAt      DateTime    @updatedAt
 
@@ -172,6 +173,7 @@ model MasterProperty {
   id        String   @id @default(uuid())
   name      String
   address   String?
+  isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -187,6 +189,7 @@ model Unit {
   type                 UnitType    @default(OTHER)
   suggestedRentalPrice Decimal     @db.Decimal(10, 2)
   status               AssetStatus @default(VACANT)
+  isActive             Boolean     @default(true)
   createdAt            DateTime    @default(now())
   updatedAt            DateTime    @updatedAt
 
@@ -203,6 +206,7 @@ model Carpark {
   carparkNumber        String      @unique
   suggestedRentalPrice Decimal     @db.Decimal(10, 2)
   status               AssetStatus @default(VACANT)
+  isActive             Boolean     @default(true)
   createdAt            DateTime    @default(now())
   updatedAt            DateTime    @updatedAt
 
@@ -294,6 +298,7 @@ model Expense {
   amount        Decimal     @db.Decimal(10, 2)
   description   String?
   expenseDate   DateTime
+  isActive      Boolean     @default(true)
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
 

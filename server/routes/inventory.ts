@@ -30,9 +30,11 @@ router.get('/timeline', authenticate, requireViewer, async (req: AuthRequest, re
 
   try {
     // Fetch all properties with units
-    const properties = await prisma.masterProperty.findMany({
+    const properties: any[] = await (prisma.masterProperty.findMany as any)({
+      where: { isActive: true },
       include: {
         units: {
+          where: { isActive: true },
           select: { id: true, unitNumber: true, type: true, status: true, suggestedRentalPrice: true },
           orderBy: { unitNumber: 'asc' },
         },
@@ -41,7 +43,8 @@ router.get('/timeline', authenticate, requireViewer, async (req: AuthRequest, re
     });
 
     // Fetch all carparks (independent)
-    const carparks = await prisma.carpark.findMany({
+    const carparks: any[] = await (prisma.carpark.findMany as any)({
+      where: { isActive: true },
       select: { id: true, carparkNumber: true, status: true, suggestedRentalPrice: true },
       orderBy: { carparkNumber: 'asc' },
     });
@@ -127,8 +130,9 @@ router.get('/customers/search', authenticate, requireViewer, async (req: AuthReq
   }
 
   try {
-    const customers = await prisma.customer.findMany({
+    const customers = await (prisma.customer.findMany as any)({
       where: {
+        isActive: true,
         OR: [
           { name: { contains: q, mode: 'insensitive' } },
           { phoneLocal: { contains: q } },

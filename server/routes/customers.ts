@@ -30,6 +30,7 @@ const includeDataSource = { dataSource: { select: { id: true, name: true } } } a
 router.get('/', authenticate, requireViewer, async (_req: AuthRequest, res: Response) => {
   try {
     const customers = await (prisma.customer.findMany as any)({
+      where: { isActive: true },
       orderBy: { customerNo: 'desc' },
       include: includeDataSource,
     });
@@ -130,15 +131,11 @@ router.put('/:id', authenticate, requireManager, async (req: AuthRequest, res: R
 
 router.delete('/:id', authenticate, requireManager, async (req: AuthRequest, res: Response) => {
   try {
-    await prisma.customer.delete({ where: { id: req.params.id } });
+    await prisma.customer.update({ where: { id: req.params.id }, data: { isActive: false } as any });
     res.json({ success: true });
   } catch (err: any) {
     if (err.code === 'P2025') {
       res.status(404).json({ error: 'Customer not found' });
-      return;
-    }
-    if (err.code === 'P2003') {
-      res.status(409).json({ error: 'Cannot delete customer with existing bookings or leases' });
       return;
     }
     console.error('Delete customer error:', err);
