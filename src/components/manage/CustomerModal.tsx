@@ -1,5 +1,5 @@
 import React from 'react';
-import { Customer } from '../../types';
+import { Customer, DataSource } from '../../types';
 import { Modal } from '../common/Modal';
 
 interface CustomerModalProps {
@@ -7,9 +7,10 @@ interface CustomerModalProps {
   onClose: () => void;
   onSubmit: (e: React.FormEvent<HTMLFormElement>) => void;
   selectedCustomer: Customer | null;
+  dataSources: DataSource[];
 }
 
-export function CustomerModal({ isOpen, onClose, onSubmit, selectedCustomer }: CustomerModalProps) {
+export function CustomerModal({ isOpen, onClose, onSubmit, selectedCustomer, dataSources }: CustomerModalProps) {
   return (
     <Modal
       isOpen={isOpen}
@@ -125,6 +126,23 @@ export function CustomerModal({ isOpen, onClose, onSubmit, selectedCustomer }: C
               placeholder="e.g. 60123456789"
             />
           </div>
+        </div>
+
+        {/* Data Source */}
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1">
+            Data Source <span className="text-slate-400 font-normal">(optional)</span>
+          </label>
+          <select
+            name="dataSourceId"
+            defaultValue={selectedCustomer?.dataSourceId ?? ''}
+            className="w-full px-4 py-2 rounded-lg border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none bg-white"
+          >
+            <option value="">— Not specified —</option>
+            {dataSources.filter(s => s.isActive || s.id === selectedCustomer?.dataSourceId).map(s => (
+              <option key={s.id} value={s.id}>{s.name}</option>
+            ))}
+          </select>
         </div>
 
         {/* Remark */}
