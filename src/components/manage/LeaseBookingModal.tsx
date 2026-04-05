@@ -103,15 +103,18 @@ export function LeaseBookingModal({ isOpen, onClose, onSuccess, prefill }: Lease
     const end = new Date(endDate);
     if (isNaN(start.getTime()) || isNaN(end.getTime()) || end <= start) return null;
 
-    const diffMs = end.getTime() - start.getTime();
-    const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24)) || 1;
     const price = parseFloat(unitPrice);
     if (isNaN(price) || price <= 0) return null;
 
     if (billingCycle === 'DAILY') {
+      // Inclusive both ends: 05/04 → 07/04 = 3 days
+      const diffMs = end.getTime() - start.getTime();
+      const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24)) + 1 || 1;
       return diffDays * price;
     } else {
-      const months = Math.ceil(diffDays / 30) || 1;
+      const months =
+        (end.getFullYear() - start.getFullYear()) * 12 +
+        (end.getMonth() - start.getMonth()) || 1;
       return months * price;
     }
   }, [startDate, endDate, billingCycle, unitPrice]);

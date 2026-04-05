@@ -8,7 +8,7 @@ function fmt(n: number) {
 }
 
 function fmtDate(d: string) {
-  return new Date(d).toLocaleDateString('en-MY', { day: '2-digit', month: 'short', year: 'numeric' });
+  return new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
 }
 
 function toInputDate(d: Date) {
