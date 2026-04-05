@@ -59,6 +59,7 @@ enum InvoiceStatus {
 
 enum DepositStatus {
   PENDING
+  PARTIALLY_HELD
   HELD
   PARTIALLY_REFUNDED
   REFUNDED
@@ -222,14 +223,16 @@ model LeaseAgreement {
 }
 
 model LeaseDeposit {
-  id         String        @id @default(uuid())
-  leaseId    String        @unique
-  amount     Decimal       @db.Decimal(10, 2)
-  status     DepositStatus @default(PENDING)
-  paidAt     DateTime?
-  refundedAt DateTime?
-  createdAt  DateTime      @default(now())
-  updatedAt  DateTime      @updatedAt
+  id             String        @id @default(uuid())
+  leaseId        String        @unique
+  amount         Decimal       @db.Decimal(10, 2)
+  status         DepositStatus @default(PENDING)
+  receivedAmount Decimal?      @db.Decimal(10, 2)
+  refundedAmount Decimal?      @db.Decimal(10, 2)
+  paidAt         DateTime?
+  refundedAt     DateTime?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
 
   lease LeaseAgreement @relation(fields: [leaseId], references: [id], onDelete: Cascade)
 
@@ -242,6 +245,7 @@ model Invoice {
   periodStart DateTime
   periodEnd   DateTime
   amount      Decimal       @db.Decimal(10, 2)
+  paidAmount  Decimal       @db.Decimal(10, 2) @default(0)
   status      InvoiceStatus @default(PENDING)
   dueDate     DateTime
   paidAt      DateTime?

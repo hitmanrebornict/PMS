@@ -43,15 +43,15 @@ Full-stack property management system: **Vite + React 19** frontend with **Expre
 - **Routing:** React Router 7 — public routes (`/`, `/login`) and protected routes under `/manage/*`
 - **Auth state:** `AuthContext` (React Context) handles JWT tokens, auto-refresh (every 14min), and session persistence via HTTP-only cookies
 - **Data flow:** `App.tsx` centralizes data management using `useApi` hook. All CRUD operations go through the backend API — no localStorage.
-- **Pages:** `src/pages/manage/` — Dashboard, MasterProperties, Units, Carparks, Timeline, Customers
-- **Modals:** `src/components/manage/` — CRUD modal dialogs for each entity + LeaseBookingModal for lease creation
+- **Pages:** `src/pages/manage/` — Dashboard, MasterProperties, Units, Carparks, Timeline, Customers, Leases, Expenses, Profit, Users
+- **Modals:** `src/components/manage/` — CRUD modal dialogs for each entity + LeaseBookingModal (create lease) + LeaseDetailModal (view/edit lease + invoices)
 - **i18n:** `src/i18n/` — LanguageContext + translations file for multi-language support
 
 ### Backend (`server/`)
 
 - **Express** server on port 5000, serves built frontend static files in production
 - **API prefix:** All routes under `/api/`
-- **Route files:** `server/routes/` — `auth.ts`, `assets.ts`, `customers.ts`, `inventory.ts`, `bookings.ts`, `upload.ts`, `reminders.ts`
+- **Route files:** `server/routes/` — `auth.ts`, `assets.ts`, `customers.ts`, `inventory.ts`, `bookings.ts`, `leases.ts`, `expenses.ts`, `profit.ts`, `upload.ts`, `reminders.ts`
 - **Middleware chain:** `authenticate` (JWT verify) → `authorize(role)` (RBAC) → handler
 - **Auth service:** `server/services/auth.service.ts` — JWT access tokens (15min), refresh token rotation (7d), account lockout after 5 failed attempts
 - **Lease service:** `server/services/lease.service.ts` — conflict detection, invoice generation, total calculation
@@ -70,6 +70,12 @@ Full-stack property management system: **Vite + React 19** frontend with **Expre
 | `/api/inventory/timeline` | GET | Viewer | Timeline data (units + carparks + leases) |
 | `/api/inventory/customers/search` | GET | Viewer | Customer search by name/phone/IC |
 | `/api/bookings` | POST | Manager | Create lease agreement with invoices |
+| `/api/leases/:id` | PATCH | Manager | Edit unitPrice, endDate, notes on active/upcoming lease |
+| `/api/leases/:id/invoices` | POST | Manager | Manually add an invoice to a lease |
+| `/api/invoices/:id` | PATCH | Manager | Edit amount, period, dueDate on pending/overdue invoice |
+| `/api/expenses/types` | GET, POST, PUT, DELETE | Viewer/Manager | Expense type CRUD |
+| `/api/expenses` | GET, POST, PUT, DELETE | Viewer/Manager | Expense CRUD (per unit) |
+| `/api/profit` | GET | Viewer | Cash-basis profit by property/unit for a date range |
 | `/api/auth/*` | various | Public/Protected | Login, refresh, logout, password reset, user CRUD |
 | `/api/upload` | POST, GET, DELETE | Manager | File upload/download/delete |
 | `/api/reminders/*` | POST | Admin | Rental and lease expiry email reminders |
@@ -79,8 +85,9 @@ Full-stack property management system: **Vite + React 19** frontend with **Expre
 - **Schema:** `prisma/schema.prisma`
 - **Asset models:** MasterProperty → Unit (cascade delete), Carpark (independent)
 - **Lease models:** LeaseAgreement → LeaseDeposit, Invoice (cascade delete)
+- **Expense models:** ExpenseType, Expense (belongs to Unit)
 - **Auth models:** User, RefreshToken, PasswordResetToken, AuditLog
-- **Legacy models:** Property, Room, Booking, MaintenanceLog, File (still in schema, not used in UI)
+- **File model:** linked only to User (uploader) and optionally Customer — no other FKs
 - **Binary targets:** native, linux-musl, linux-musl-openssl-3.0.x (for Docker Alpine)
 - Unit numbers are unique per property (compound unique constraint)
 - Carpark numbers are globally unique
@@ -97,6 +104,8 @@ Full-stack property management system: **Vite + React 19** frontend with **Expre
 - **Prisma error codes:** `P2002` = unique constraint violation (→ 409), `P2003` = foreign key violation (→ 409), `P2025` = record not found (→ 404)
 - **Timeline page** fetches its own data via `useApi` (not from App.tsx state)
 - **LeaseBookingModal** handles customer search and lease creation independently via API
+- **Profit page** uses cash-basis accounting: only invoices with `status='PAID'` and `paidAt` within the selected period count as income. Carparks are shown separately (no property/unit hierarchy).
+- **React.FC\<T\> required for `key` prop:** In React 19, `function Foo({ ... }: { ... })` doesn't accept `key` as a JSX attribute. Use `const Foo: React.FC<Props> = ({ ... }) =>` and add `import React` explicitly when rendering lists of custom components.
 
 ### Dev Proxy
 
@@ -143,8 +152,7 @@ Required in `.env`:
 - `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `EMAIL_FROM` — email config
 
 Optional:
-- `GEMINI_API_KEY` — Google Gemini AI integration
-- `DB_PASSWORD` — used by docker-compose
+- `DB_PASSWORD` — used by docker-compose (injected into `DATABASE_URL` for the `db` service)
 
 ## Default Login
 

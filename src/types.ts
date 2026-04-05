@@ -98,12 +98,14 @@ export interface TimelineData {
 // ─── Lease Management ───────────────────────────────────────────────────────
 
 export type InvoiceStatusType = 'PENDING' | 'PAID' | 'OVERDUE' | 'CANCELLED';
-export type DepositStatusType = 'PENDING' | 'HELD' | 'PARTIALLY_REFUNDED' | 'REFUNDED' | 'FORFEITED';
+export type DepositStatusType = 'PENDING' | 'PARTIALLY_HELD' | 'HELD' | 'PARTIALLY_REFUNDED' | 'REFUNDED' | 'FORFEITED';
 
 export interface LeaseDepositInfo {
   id: string;
   amount: number;
   status: DepositStatusType;
+  receivedAmount?: number | null;
+  refundedAmount?: number | null;
   paidAt?: string | null;
   refundedAt?: string | null;
 }
@@ -113,6 +115,7 @@ export interface LeaseInvoice {
   periodStart: string;
   periodEnd: string;
   amount: number;
+  paidAmount: number;
   status: InvoiceStatusType;
   dueDate: string;
   paidAt?: string | null;

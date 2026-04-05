@@ -18,11 +18,17 @@ function serializeLease(lease: any) {
     unitPrice: toNumber(lease.unitPrice),
     totalAmount: toNumber(lease.totalAmount),
     deposit: lease.deposit
-      ? { ...lease.deposit, amount: toNumber(lease.deposit.amount) }
+      ? {
+          ...lease.deposit,
+          amount: toNumber(lease.deposit.amount),
+          receivedAmount: lease.deposit.receivedAmount != null ? toNumber(lease.deposit.receivedAmount) : null,
+          refundedAmount: lease.deposit.refundedAmount != null ? toNumber(lease.deposit.refundedAmount) : null,
+        }
       : null,
     invoices: lease.invoices?.map((inv: any) => ({
       ...inv,
       amount: toNumber(inv.amount),
+      paidAmount: toNumber(inv.paidAmount),
     })),
   };
 }
@@ -342,25 +348,43 @@ invoicesRouter.patch('/:id', authenticate, requireManager, async (req: AuthReque
   }
 });
 
-// PATCH /api/invoices/:id/pay — Mark invoice as PAID
+// PATCH /api/invoices/:id/pay — Mark invoice as paid (full or partial)
+const payInvoiceSchema = z.object({
+  amount: z.number().positive(),
+});
+
 invoicesRouter.patch('/:id/pay', authenticate, requireManager, async (req: AuthRequest, res: Response) => {
+  const parsed = payInvoiceSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: 'amount is required' });
+    return;
+  }
+
   try {
-    const invoice = await prisma.invoice.findUnique({ where: { id: req.params.id } });
+    const { Decimal } = await import('@prisma/client/runtime/library');
+    const invoice = await prisma.invoice.findUnique({ where: { id: req.params.id } }) as any;
     if (!invoice) {
       res.status(404).json({ error: 'Invoice not found' });
       return;
     }
     if (invoice.status !== 'PENDING' && invoice.status !== 'OVERDUE') {
-      res.status(400).json({ error: 'Only PENDING or OVERDUE invoices can be marked as paid' });
+      res.status(400).json({ error: 'Only PENDING or OVERDUE invoices can receive payment' });
       return;
     }
 
-    const updated = await prisma.invoice.update({
+    const newPaidAmount = Number(invoice.paidAmount ?? 0) + parsed.data.amount;
+    const invoiceAmount = Number(invoice.amount);
+    const isFullyPaid = newPaidAmount >= invoiceAmount;
+
+    const updated = await (prisma.invoice.update as any)({
       where: { id: req.params.id },
-      data: { status: 'PAID', paidAt: new Date() },
+      data: {
+        paidAmount: new Decimal(Math.min(newPaidAmount, invoiceAmount)),
+        ...(isFullyPaid ? { status: 'PAID', paidAt: new Date() } : {}),
+      },
     });
 
-    res.json({ ...updated, amount: toNumber(updated.amount) });
+    res.json({ ...updated, amount: toNumber(updated.amount), paidAmount: toNumber(updated.paidAmount) });
   } catch (err) {
     console.error('Pay invoice error:', err);
     res.status(500).json({ error: 'Internal server error' });
@@ -372,10 +396,11 @@ invoicesRouter.patch('/:id/pay', authenticate, requireManager, async (req: AuthR
 const depositsRouter = Router();
 
 const updateDepositSchema = z.object({
-  status: z.enum(['HELD', 'REFUNDED', 'FORFEITED']),
+  action: z.enum(['receive', 'refund', 'forfeit']),
+  amount: z.number().min(0),
 });
 
-// PATCH /api/deposits/:id — Update deposit status
+// PATCH /api/deposits/:id — Update deposit with partial or full amount
 depositsRouter.patch('/:id', authenticate, requireManager, async (req: AuthRequest, res: Response) => {
   const parsed = updateDepositSchema.safeParse(req.body);
   if (!parsed.success) {
@@ -384,25 +409,63 @@ depositsRouter.patch('/:id', authenticate, requireManager, async (req: AuthReque
   }
 
   try {
-    const deposit = await prisma.leaseDeposit.findUnique({ where: { id: req.params.id } });
+    const { Decimal } = await import('@prisma/client/runtime/library');
+    const deposit = await prisma.leaseDeposit.findUnique({ where: { id: req.params.id } }) as any;
     if (!deposit) {
       res.status(404).json({ error: 'Deposit not found' });
       return;
     }
 
-    const data: any = { status: parsed.data.status };
-    if (parsed.data.status === 'HELD') {
-      data.paidAt = new Date();
-    } else if (parsed.data.status === 'REFUNDED') {
+    const { action, amount } = parsed.data;
+    const depositAmount = Number(deposit.amount);
+    const data: any = {};
+
+    if (action === 'receive') {
+      if (deposit.status !== 'PENDING' && deposit.status !== 'PARTIALLY_HELD') {
+        res.status(400).json({ error: 'Deposit is already fully received' });
+        return;
+      }
+      const currentReceived = Number(deposit.receivedAmount ?? 0);
+      const newReceived = Math.min(currentReceived + amount, depositAmount);
+      data.receivedAmount = new Decimal(newReceived);
+      if (newReceived >= depositAmount) {
+        data.status = 'HELD';
+        data.paidAt = new Date();
+      } else {
+        data.status = 'PARTIALLY_HELD';
+      }
+    } else if (action === 'refund') {
+      if (deposit.status !== 'HELD' && deposit.status !== 'PARTIALLY_HELD' && deposit.status !== 'PARTIALLY_REFUNDED') {
+        res.status(400).json({ error: 'Deposit cannot be refunded in its current state' });
+        return;
+      }
+      const currentRefunded = Number(deposit.refundedAmount ?? 0);
+      const newRefunded = Math.min(currentRefunded + amount, depositAmount);
+      data.refundedAmount = new Decimal(newRefunded);
+      if (newRefunded >= depositAmount) {
+        data.status = 'REFUNDED';
+        data.refundedAt = new Date();
+      } else {
+        data.status = 'PARTIALLY_REFUNDED';
+      }
+    } else if (action === 'forfeit') {
+      if (deposit.status !== 'HELD' && deposit.status !== 'PARTIALLY_HELD') {
+        res.status(400).json({ error: 'Only a received deposit can be forfeited' });
+        return;
+      }
+      // amount = how much to give back (0 = full forfeit)
+      data.status = 'FORFEITED';
+      data.refundedAmount = new Decimal(amount);
       data.refundedAt = new Date();
     }
 
-    const updated = await prisma.leaseDeposit.update({
-      where: { id: req.params.id },
-      data,
+    const updated = await prisma.leaseDeposit.update({ where: { id: req.params.id }, data }) as any;
+    res.json({
+      ...updated,
+      amount: toNumber(updated.amount),
+      receivedAmount: updated.receivedAmount != null ? toNumber(updated.receivedAmount) : null,
+      refundedAmount: updated.refundedAmount != null ? toNumber(updated.refundedAmount) : null,
     });
-
-    res.json({ ...updated, amount: toNumber(updated.amount) });
   } catch (err) {
     console.error('Update deposit error:', err);
     res.status(500).json({ error: 'Internal server error' });

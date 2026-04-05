@@ -201,7 +201,7 @@ export function UsersPage() {
                     )}
                   </td>
                   <td className="px-4 py-4 text-slate-500 text-sm">
-                    {new Date(user.createdAt).toLocaleDateString()}
+                    {new Date(user.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })}
                   </td>
                   <td className="px-4 py-4 text-right">
                     <div className="flex justify-end gap-1">

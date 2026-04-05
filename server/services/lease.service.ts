@@ -112,14 +112,16 @@ export function calculateTotalAmount(
   billingCycle: BillingCycle,
   unitPrice: number,
 ): number {
-  const diffMs = endDate.getTime() - startDate.getTime();
-  const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24)) || 1;
-
   if (billingCycle === 'DAILY') {
+    // Inclusive both ends: 05/04 → 07/04 = 3 days
+    const diffMs = endDate.getTime() - startDate.getTime();
+    const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24)) + 1 || 1;
     return diffDays * unitPrice;
   } else {
-    // FIXED_TERM and MONTHLY: count calendar months
-    const months = Math.ceil(diffDays / 30) || 1;
+    // FIXED_TERM and MONTHLY: count calendar months between start and end
+    const months =
+      (endDate.getFullYear() - startDate.getFullYear()) * 12 +
+      (endDate.getMonth() - startDate.getMonth()) || 1;
     return months * unitPrice;
   }
 }

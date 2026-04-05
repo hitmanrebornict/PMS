@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { FileText, Search, X } from 'lucide-react';
-import { Lease, LeaseStatusType } from '../../types';
+import { Lease, LeaseStatusType, DepositStatusType } from '../../types';
 
 interface LeasesPageProps {
   leases: Lease[];
@@ -22,14 +22,82 @@ const statusColors: Record<LeaseStatusType, string> = {
   COMPLETED: 'bg-slate-100 text-slate-600',
 };
 
-function getAssetLabel(lease: Lease): string {
-  if (lease.unit) return `${lease.unit.unitNumber} - ${lease.unit.property.name}`;
-  if (lease.carpark) return `Carpark ${lease.carpark.carparkNumber}`;
-  return 'Unknown';
-}
+const depositStatusColors: Record<DepositStatusType, string> = {
+  PENDING: 'bg-amber-100 text-amber-700',
+  PARTIALLY_HELD: 'bg-orange-100 text-orange-700',
+  HELD: 'bg-emerald-100 text-emerald-700',
+  PARTIALLY_REFUNDED: 'bg-blue-100 text-blue-700',
+  REFUNDED: 'bg-sky-100 text-sky-700',
+  FORFEITED: 'bg-red-100 text-red-700',
+};
 
 function formatDate(dateStr: string): string {
-  return new Date(dateStr).toLocaleDateString('en-MY', { day: '2-digit', month: 'short', year: 'numeric' });
+  return new Date(dateStr).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
+
+function LeaseTable({ rows, onViewDetail }: { rows: Lease[]; onViewDetail: (l: Lease) => void }) {
+  if (rows.length === 0) return null;
+  return (
+    <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-slate-100 bg-slate-50">
+              <th className="text-left px-4 py-3 font-semibold text-slate-600">Asset</th>
+              <th className="text-left px-4 py-3 font-semibold text-slate-600">Customer</th>
+              <th className="text-left px-4 py-3 font-semibold text-slate-600 hidden md:table-cell">Period</th>
+              <th className="text-left px-4 py-3 font-semibold text-slate-600 hidden lg:table-cell">Billing</th>
+              <th className="text-right px-4 py-3 font-semibold text-slate-600">Amount</th>
+              <th className="text-center px-4 py-3 font-semibold text-slate-600">Deposit</th>
+              <th className="text-center px-4 py-3 font-semibold text-slate-600">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((lease) => (
+              <tr
+                key={lease.id}
+                onClick={() => onViewDetail(lease)}
+                className="border-b border-slate-50 hover:bg-slate-50 cursor-pointer transition-colors"
+              >
+                <td className="px-4 py-3 font-medium text-slate-900">
+                  {lease.unit
+                    ? `${lease.unit.unitNumber} — ${lease.unit.property.name}`
+                    : `Carpark ${lease.carpark?.carparkNumber}`}
+                </td>
+                <td className="px-4 py-3 text-slate-600">
+                  <div>{lease.customer.name}</div>
+                  <div className="text-xs text-slate-400">{lease.customer.phoneLocal}</div>
+                </td>
+                <td className="px-4 py-3 text-slate-600 hidden md:table-cell">
+                  {formatDate(lease.startDate)} – {formatDate(lease.endDate)}
+                </td>
+                <td className="px-4 py-3 text-slate-600 hidden lg:table-cell capitalize">
+                  {lease.billingCycle.toLowerCase().replace('_', ' ')}
+                </td>
+                <td className="px-4 py-3 text-right font-medium text-slate-900">
+                  RM {lease.totalAmount.toLocaleString('en-MY', { minimumFractionDigits: 2 })}
+                </td>
+                <td className="px-4 py-3 text-center">
+                  {lease.deposit ? (
+                    <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${depositStatusColors[lease.deposit.status]}`}>
+                      {lease.deposit.status.replace(/_/g, ' ')}
+                    </span>
+                  ) : (
+                    <span className="text-xs text-slate-400">—</span>
+                  )}
+                </td>
+                <td className="px-4 py-3 text-center">
+                  <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold ${statusColors[lease.status]}`}>
+                    {lease.status}
+                  </span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
 }
 
 export function LeasesPage({ leases, onViewDetail }: LeasesPageProps) {
@@ -42,24 +110,20 @@ export function LeasesPage({ leases, onViewDetail }: LeasesPageProps) {
     if (statusFilter !== 'ALL' && l.status !== statusFilter) return false;
     if (search) {
       const q = search.toLowerCase();
-      const asset = getAssetLabel(l).toLowerCase();
+      const asset = l.unit
+        ? `${l.unit.unitNumber} ${l.unit.property.name}`.toLowerCase()
+        : `carpark ${l.carpark?.carparkNumber}`.toLowerCase();
       const customer = l.customer.name.toLowerCase();
       if (!asset.includes(q) && !customer.includes(q) && !l.customer.phoneLocal.includes(q)) return false;
     }
-    if (dateFrom) {
-      const from = new Date(dateFrom).getTime();
-      if (new Date(l.startDate).getTime() < from) return false;
-    }
-    if (dateTo) {
-      const to = new Date(dateTo).getTime();
-      if (new Date(l.endDate).getTime() > to) return false;
-    }
+    if (dateFrom && new Date(l.startDate).getTime() < new Date(dateFrom).getTime()) return false;
+    if (dateTo && new Date(l.endDate).getTime() > new Date(dateTo).getTime()) return false;
     return true;
   });
 
+  const unitLeases = filtered.filter((l) => l.unit != null);
+  const carparkLeases = filtered.filter((l) => l.carpark != null && l.unit == null);
   const hasDateFilter = dateFrom || dateTo;
-
-  const clearDates = () => { setDateFrom(''); setDateTo(''); };
 
   return (
     <div className="space-y-6">
@@ -71,7 +135,6 @@ export function LeasesPage({ leases, onViewDetail }: LeasesPageProps) {
 
       {/* Filters */}
       <div className="flex flex-col gap-3">
-        {/* Status + Search row */}
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="flex gap-2 flex-wrap">
             {STATUS_FILTERS.map((f) => (
@@ -100,7 +163,6 @@ export function LeasesPage({ leases, onViewDetail }: LeasesPageProps) {
           </div>
         </div>
 
-        {/* Date range row */}
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-sm text-slate-500 font-medium">Lease period:</span>
           <div className="flex items-center gap-2">
@@ -120,7 +182,7 @@ export function LeasesPage({ leases, onViewDetail }: LeasesPageProps) {
           </div>
           {hasDateFilter && (
             <button
-              onClick={clearDates}
+              onClick={() => { setDateFrom(''); setDateTo(''); }}
               className="flex items-center gap-1 text-xs text-slate-400 hover:text-rose-500 transition-colors"
             >
               <X size={13} /> Clear dates
@@ -129,8 +191,8 @@ export function LeasesPage({ leases, onViewDetail }: LeasesPageProps) {
         </div>
       </div>
 
-      {/* Table */}
-      {filtered.length === 0 ? (
+      {/* Empty state */}
+      {filtered.length === 0 && (
         <div className="bg-white rounded-xl border border-slate-200 p-12 text-center">
           <FileText size={48} className="mx-auto text-slate-300 mb-4" />
           <p className="text-slate-500">
@@ -139,51 +201,25 @@ export function LeasesPage({ leases, onViewDetail }: LeasesPageProps) {
               : 'No leases match the current filter.'}
           </p>
         </div>
-      ) : (
-        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-slate-100 bg-slate-50">
-                  <th className="text-left px-4 py-3 font-semibold text-slate-600">Asset</th>
-                  <th className="text-left px-4 py-3 font-semibold text-slate-600">Customer</th>
-                  <th className="text-left px-4 py-3 font-semibold text-slate-600 hidden md:table-cell">Period</th>
-                  <th className="text-left px-4 py-3 font-semibold text-slate-600 hidden lg:table-cell">Billing</th>
-                  <th className="text-right px-4 py-3 font-semibold text-slate-600">Amount</th>
-                  <th className="text-center px-4 py-3 font-semibold text-slate-600">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map((lease) => (
-                  <tr
-                    key={lease.id}
-                    onClick={() => onViewDetail(lease)}
-                    className="border-b border-slate-50 hover:bg-slate-50 cursor-pointer transition-colors"
-                  >
-                    <td className="px-4 py-3 font-medium text-slate-900">{getAssetLabel(lease)}</td>
-                    <td className="px-4 py-3 text-slate-600">
-                      <div>{lease.customer.name}</div>
-                      <div className="text-xs text-slate-400">{lease.customer.phoneLocal}</div>
-                    </td>
-                    <td className="px-4 py-3 text-slate-600 hidden md:table-cell">
-                      {formatDate(lease.startDate)} – {formatDate(lease.endDate)}
-                    </td>
-                    <td className="px-4 py-3 text-slate-600 hidden lg:table-cell capitalize">
-                      {lease.billingCycle.toLowerCase().replace('_', ' ')}
-                    </td>
-                    <td className="px-4 py-3 text-right font-medium text-slate-900">
-                      RM {lease.totalAmount.toLocaleString('en-MY', { minimumFractionDigits: 2 })}
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold ${statusColors[lease.status]}`}>
-                        {lease.status}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+      )}
+
+      {/* Unit / Property Leases */}
+      {unitLeases.length > 0 && (
+        <div className="space-y-2">
+          <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wide px-1">
+            Property Units ({unitLeases.length})
+          </h2>
+          <LeaseTable rows={unitLeases} onViewDetail={onViewDetail} />
+        </div>
+      )}
+
+      {/* Carpark Leases */}
+      {carparkLeases.length > 0 && (
+        <div className="space-y-2">
+          <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wide px-1">
+            Carparks ({carparkLeases.length})
+          </h2>
+          <LeaseTable rows={carparkLeases} onViewDetail={onViewDetail} />
         </div>
       )}
     </div>
