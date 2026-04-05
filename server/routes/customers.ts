@@ -18,18 +18,23 @@ const createCustomerSchema = z.object({
   wechatId: z.string().max(100).optional(),
   whatsappNumber: z.string().max(30).optional(),
   remark: z.string().max(1000).optional(),
+  dataSourceId: z.string().uuid().optional().nullable(),
 });
 
 const updateCustomerSchema = createCustomerSchema.partial();
+
+const includeDataSource = { dataSource: { select: { id: true, name: true } } } as any;
 
 // ─── CRUD ───────────────────────────────────────────────────────────────────
 
 router.get('/', authenticate, requireViewer, async (_req: AuthRequest, res: Response) => {
   try {
-    const customers = await prisma.customer.findMany({
+    const customers = await (prisma.customer.findMany as any)({
+      where: { isActive: true },
       orderBy: { customerNo: 'desc' },
+      include: includeDataSource,
     });
-    res.json(customers.map(c => ({
+    res.json(customers.map((c: any) => ({
       id: c.id,
       customerNo: c.customerNo,
       name: c.name,
@@ -41,6 +46,8 @@ router.get('/', authenticate, requireViewer, async (_req: AuthRequest, res: Resp
       wechatId: c.wechatId,
       whatsappNumber: c.whatsappNumber,
       remark: c.remark,
+      dataSourceId: c.dataSourceId,
+      dataSource: c.dataSource,
     })));
   } catch (err) {
     console.error('List customers error:', err);
@@ -57,7 +64,7 @@ router.post('/', authenticate, requireManager, async (req: AuthRequest, res: Res
   try {
     const data = { ...parsed.data };
     if (data.email === '') delete data.email;
-    const customer = await prisma.customer.create({ data });
+    const customer: any = await (prisma.customer.create as any)({ data, include: includeDataSource });
     res.status(201).json({
       id: customer.id,
       customerNo: customer.customerNo,
@@ -66,6 +73,8 @@ router.post('/', authenticate, requireManager, async (req: AuthRequest, res: Res
       icPassport: customer.icPassport,
       email: customer.email,
       currentAddress: customer.currentAddress,
+      dataSourceId: customer.dataSourceId,
+      dataSource: customer.dataSource,
     });
   } catch (err: any) {
     if (err.code === 'P2002') {
@@ -86,9 +95,10 @@ router.put('/:id', authenticate, requireManager, async (req: AuthRequest, res: R
   try {
     const data = { ...parsed.data };
     if (data.email === '') delete data.email;
-    const customer = await prisma.customer.update({
+    const customer: any = await (prisma.customer.update as any)({
       where: { id: req.params.id },
       data,
+      include: includeDataSource,
     });
     res.json({
       id: customer.id,
@@ -102,6 +112,8 @@ router.put('/:id', authenticate, requireManager, async (req: AuthRequest, res: R
       wechatId: customer.wechatId,
       whatsappNumber: customer.whatsappNumber,
       remark: customer.remark,
+      dataSourceId: customer.dataSourceId,
+      dataSource: customer.dataSource,
     });
   } catch (err: any) {
     if (err.code === 'P2025') {
@@ -119,15 +131,11 @@ router.put('/:id', authenticate, requireManager, async (req: AuthRequest, res: R
 
 router.delete('/:id', authenticate, requireManager, async (req: AuthRequest, res: Response) => {
   try {
-    await prisma.customer.delete({ where: { id: req.params.id } });
+    await prisma.customer.update({ where: { id: req.params.id }, data: { isActive: false } as any });
     res.json({ success: true });
   } catch (err: any) {
     if (err.code === 'P2025') {
       res.status(404).json({ error: 'Customer not found' });
-      return;
-    }
-    if (err.code === 'P2003') {
-      res.status(409).json({ error: 'Cannot delete customer with existing bookings or leases' });
       return;
     }
     console.error('Delete customer error:', err);

@@ -40,6 +40,14 @@ export interface Carpark {
 
 // ─── Customer ────────────────────────────────────────────────────────────────
 
+export interface DataSource {
+  id: string;
+  name: string;
+  description?: string;
+  isActive: boolean;
+  customerCount?: number;
+}
+
 export interface Customer {
   id: string;
   customerNo?: number;
@@ -52,6 +60,8 @@ export interface Customer {
   wechatId?: string;
   whatsappNumber?: string;
   remark?: string;
+  dataSourceId?: string | null;
+  dataSource?: { id: string; name: string } | null;
 }
 
 // ─── Timeline / Lease ────────────────────────────────────────────────────────

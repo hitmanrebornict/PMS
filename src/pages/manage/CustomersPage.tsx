@@ -54,7 +54,7 @@ export function CustomersPage({ customers, onAdd, onEdit, onDelete }: CustomersP
 
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse min-w-[900px]">
+          <table className="w-full text-left border-collapse min-w-[1050px]">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200">
                 <th className="px-4 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">No.</th>
@@ -63,6 +63,7 @@ export function CustomersPage({ customers, onAdd, onEdit, onDelete }: CustomersP
                 <th className="px-4 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">IC / Passport</th>
                 <th className="px-4 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Email</th>
                 <th className="px-4 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">WeChat / WhatsApp</th>
+                <th className="px-4 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Source</th>
                 <th className="px-4 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider text-right">Actions</th>
               </tr>
             </thead>
@@ -92,6 +93,12 @@ export function CustomersPage({ customers, onAdd, onEdit, onDelete }: CustomersP
                     )}
                     {!customer.wechatId && !customer.whatsappNumber && <span className="text-slate-300">—</span>}
                   </td>
+                  <td className="px-4 py-4 text-sm">
+                    {customer.dataSource
+                      ? <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-50 text-indigo-700">{customer.dataSource.name}</span>
+                      : <span className="text-slate-300">—</span>
+                    }
+                  </td>
                   <td className="px-4 py-4 text-right">
                     <div className="flex justify-end gap-2">
                       <button
@@ -112,7 +119,7 @@ export function CustomersPage({ customers, onAdd, onEdit, onDelete }: CustomersP
               ))}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="px-6 py-12 text-center text-slate-400 italic">
+                  <td colSpan={8} className="px-6 py-12 text-center text-slate-400 italic">
                     {search ? 'No customers match your search.' : 'No customers found. Add your first customer above.'}
                   </td>
                 </tr>

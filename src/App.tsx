@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import {
   Customer, Lease,
   MasterProperty, Unit, Carpark, UnitType, AssetStatus,
-  ExpenseType, Expense,
+  ExpenseType, Expense, DataSource,
 } from './types';
 
 // Hooks
@@ -26,6 +26,7 @@ import { LeasesPage }            from './pages/manage/LeasesPage';
 import { UsersPage }        from './pages/manage/UsersPage';
 import { ExpensesPage }     from './pages/manage/ExpensesPage';
 import { ProfitPage }       from './pages/manage/ProfitPage';
+import { DataSourcesPage }  from './pages/manage/DataSourcesPage';
 
 // Modals
 import { MasterPropertyModal }   from './components/manage/MasterPropertyModal';
@@ -36,6 +37,7 @@ import { LeaseBookingModal }     from './components/manage/LeaseBookingModal';
 import { LeaseDetailModal }      from './components/manage/LeaseDetailModal';
 import { ExpenseTypeModal }      from './components/manage/ExpenseTypeModal';
 import { ExpenseModal }          from './components/manage/ExpenseModal';
+import { DataSourceModal }       from './components/manage/DataSourceModal';
 
 export default function App() {
   const { apiFetch } = useApi();
@@ -73,16 +75,20 @@ export default function App() {
   const [expensePrefillUnitId,  setExpensePrefillUnitId]  = useState<string | null>(null);
   const [expenseTypes,          setExpenseTypes]          = useState<ExpenseType[]>([]);
   const [expenseRefreshSignal,  setExpenseRefreshSignal]  = useState(0);
+  const [dataSources,           setDataSources]           = useState<DataSource[]>([]);
+  const [isDataSourceModalOpen, setIsDataSourceModalOpen] = useState(false);
+  const [selectedDataSource,    setSelectedDataSource]    = useState<DataSource | null>(null);
 
   // ─── Load data from API ────────────────────────────────────────
   const refreshData = useCallback(async () => {
-    const [propsRes, unitsRes, carparksRes, customersRes, leasesRes, expTypesRes] = await Promise.all([
+    const [propsRes, unitsRes, carparksRes, customersRes, leasesRes, expTypesRes, dsRes] = await Promise.all([
       apiFetch('/api/assets/properties'),
       apiFetch('/api/assets/units'),
       apiFetch('/api/assets/carparks'),
       apiFetch('/api/customers'),
       apiFetch('/api/leases'),
       apiFetch('/api/expenses/types'),
+      apiFetch('/api/datasources'),
     ]);
     if (propsRes.ok) setMasterProperties(await propsRes.json());
     if (unitsRes.ok) setUnits(await unitsRes.json());
@@ -90,6 +96,7 @@ export default function App() {
     if (customersRes.ok) setCustomers(await customersRes.json());
     if (leasesRes.ok) setLeases(await leasesRes.json());
     if (expTypesRes.ok) setExpenseTypes(await expTypesRes.json());
+    if (dsRes.ok) setDataSources(await dsRes.json());
   }, [apiFetch]);
 
   useEffect(() => { refreshData(); }, [refreshData]);
@@ -169,6 +176,7 @@ export default function App() {
   const handleAddCustomer = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
+    const dataSourceId = fd.get('dataSourceId') as string;
     const payload = {
       name:           fd.get('name') as string,
       phoneLocal:     fd.get('phoneLocal') as string,
@@ -179,6 +187,7 @@ export default function App() {
       wechatId:       (fd.get('wechatId') as string) || undefined,
       whatsappNumber: (fd.get('whatsappNumber') as string) || undefined,
       remark:         (fd.get('remark') as string) || undefined,
+      dataSourceId:   dataSourceId || null,
     };
     const url = selectedCustomer
       ? `/api/customers/${selectedCustomer.id}`
@@ -236,6 +245,42 @@ export default function App() {
     } else {
       const data = await res.json();
       alert(data.error || 'Failed to delete customer');
+    }
+  };
+
+  // ─── Data Source Handlers ──────────────────────────────────────
+
+  const handleSaveDataSource = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const fd = new FormData(e.currentTarget);
+    const payload = {
+      name:        fd.get('name') as string,
+      description: (fd.get('description') as string) || undefined,
+      isActive:    selectedDataSource ? (e.currentTarget.querySelector<HTMLInputElement>('#isActive')?.checked ?? true) : true,
+    };
+    const url = selectedDataSource
+      ? `/api/datasources/${selectedDataSource.id}`
+      : '/api/datasources';
+    const method = selectedDataSource ? 'PUT' : 'POST';
+    const res = await apiFetch(url, { method, body: JSON.stringify(payload) });
+    if (res.ok) {
+      setIsDataSourceModalOpen(false);
+      setSelectedDataSource(null);
+      await refreshData();
+    } else {
+      const data = await res.json();
+      alert(data.error || 'Failed to save data source');
+    }
+  };
+
+  const handleDeleteDataSource = async (source: DataSource) => {
+    if (!confirm(`Delete data source "${source.name}"? Customers linked to it will have their source cleared.`)) return;
+    const res = await apiFetch(`/api/datasources/${source.id}`, { method: 'DELETE' });
+    if (res.ok) {
+      await refreshData();
+    } else {
+      const data = await res.json();
+      alert(data.error || 'Failed to delete data source');
     }
   };
 
@@ -391,6 +436,14 @@ export default function App() {
         onDelete={handleDeleteCustomer}
       />
     ),
+    dataSources: (
+      <DataSourcesPage
+        dataSources={dataSources}
+        onAdd={() => { setSelectedDataSource(null); setIsDataSourceModalOpen(true); }}
+        onEdit={s => { setSelectedDataSource(s); setIsDataSourceModalOpen(true); }}
+        onDelete={handleDeleteDataSource}
+      />
+    ),
     users: <UsersPage />,
     profit: <ProfitPage />,
     expenses: (
@@ -485,6 +538,7 @@ export default function App() {
         onClose={() => { setIsCustomerModalOpen(false); setSelectedCustomer(null); }}
         onSubmit={handleAddCustomer}
         selectedCustomer={selectedCustomer}
+        dataSources={dataSources}
       />
       <LeaseBookingModal
         isOpen={isLeaseModalOpen}
@@ -497,6 +551,12 @@ export default function App() {
         onClose={() => { setIsLeaseDetailModalOpen(false); setSelectedLeaseId(null); }}
         leaseId={selectedLeaseId}
         onAction={() => { refreshData(); }}
+      />
+      <DataSourceModal
+        isOpen={isDataSourceModalOpen}
+        onClose={() => { setIsDataSourceModalOpen(false); setSelectedDataSource(null); }}
+        onSubmit={handleSaveDataSource}
+        selectedSource={selectedDataSource}
       />
       <ExpenseTypeModal
         isOpen={isExpenseTypeModalOpen}

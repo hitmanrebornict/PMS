@@ -130,23 +130,39 @@ model AuditLog {
 
 // ─── Customer ─────────────────────────────────────────────────────────────────
 
+model DataSource {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  customers Customer[]
+
+  @@map("data_sources")
+}
+
 model Customer {
-  id             String   @id @default(uuid())
-  customerNo     Int      @unique @default(autoincrement())
+  id             String      @id @default(uuid())
+  customerNo     Int         @unique @default(autoincrement())
   name           String
   phoneLocal     String
   phoneOther     String?
-  icPassport     String   @unique
+  icPassport     String      @unique
   email          String?
   currentAddress String
   wechatId       String?
   whatsappNumber String?
   remark         String?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  dataSourceId   String?
+  isActive       Boolean     @default(true)
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
 
-  leases LeaseAgreement[]
-  files  File[]
+  dataSource DataSource?      @relation(fields: [dataSourceId], references: [id], onDelete: SetNull)
+  leases     LeaseAgreement[]
+  files      File[]
 
   @@map("customers")
 }
@@ -157,6 +173,7 @@ model MasterProperty {
   id        String   @id @default(uuid())
   name      String
   address   String?
+  isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -172,6 +189,7 @@ model Unit {
   type                 UnitType    @default(OTHER)
   suggestedRentalPrice Decimal     @db.Decimal(10, 2)
   status               AssetStatus @default(VACANT)
+  isActive             Boolean     @default(true)
   createdAt            DateTime    @default(now())
   updatedAt            DateTime    @updatedAt
 
@@ -188,6 +206,7 @@ model Carpark {
   carparkNumber        String      @unique
   suggestedRentalPrice Decimal     @db.Decimal(10, 2)
   status               AssetStatus @default(VACANT)
+  isActive             Boolean     @default(true)
   createdAt            DateTime    @default(now())
   updatedAt            DateTime    @updatedAt
 
@@ -279,6 +298,7 @@ model Expense {
   amount        Decimal     @db.Decimal(10, 2)
   description   String?
   expenseDate   DateTime
+  isActive      Boolean     @default(true)
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
 
