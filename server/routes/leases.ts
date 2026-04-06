@@ -396,7 +396,7 @@ invoicesRouter.patch('/:id/pay', authenticate, requireManager, async (req: AuthR
 const depositsRouter = Router();
 
 const updateDepositSchema = z.object({
-  action: z.enum(['receive', 'refund', 'forfeit']),
+  action: z.enum(['receive', 'refund', 'forfeit', 'editAmount']),
   amount: z.number().min(0),
 });
 
@@ -457,6 +457,26 @@ depositsRouter.patch('/:id', authenticate, requireManager, async (req: AuthReque
       data.status = 'FORFEITED';
       data.refundedAmount = new Decimal(amount);
       data.refundedAt = new Date();
+    } else if (action === 'editAmount') {
+      // Only allow editing deposit amount before it's been refunded or forfeited
+      if (deposit.status === 'REFUNDED' || deposit.status === 'PARTIALLY_REFUNDED' || deposit.status === 'FORFEITED') {
+        res.status(400).json({ error: 'Cannot edit deposit amount after refund or forfeit' });
+        return;
+      }
+      if (amount <= 0) {
+        res.status(400).json({ error: 'Deposit amount must be greater than 0' });
+        return;
+      }
+      data.amount = new Decimal(amount);
+      // If received amount exceeds new amount, cap it and adjust status
+      const currentReceived = Number(deposit.receivedAmount ?? 0);
+      if (currentReceived > 0 && currentReceived >= amount) {
+        data.receivedAmount = new Decimal(amount);
+        data.status = 'HELD';
+        data.paidAt = deposit.paidAt || new Date();
+      } else if (currentReceived > 0 && currentReceived < amount) {
+        data.status = 'PARTIALLY_HELD';
+      }
     }
 
     const updated = await prisma.leaseDeposit.update({ where: { id: req.params.id }, data }) as any;

@@ -58,6 +58,9 @@ Full-stack property management system: **Vite + React 19** frontend with **Expre
 - **File uploads:** Multer disk storage, PDF/JPG/PNG only, 10MB max, stored in `uploads/`
 - **Email:** Nodemailer for password reset, rental reminders, lease expiry notices
 - **Validation:** Zod schemas for request body validation
+- **Rate limiting:** Global 500 req/15min (prod) or 2000 (dev); auth endpoints 10/15min (prod) or 50 (dev)
+- **Trust proxy:** `trust proxy = 1` for Cloudflare Tunnel — required for rate limiter and secure cookies behind a reverse proxy
+- **Leases route exports three routers:** `leasesRouter` (default), `invoicesRouter`, `depositsRouter` — all mounted separately in `index.ts` at `/api/leases`, `/api/invoices`, `/api/deposits`
 
 ### API Routes
 
@@ -71,17 +74,25 @@ Full-stack property management system: **Vite + React 19** frontend with **Expre
 | `/api/inventory/timeline` | GET | Viewer | Timeline data (units + carparks + leases) |
 | `/api/inventory/customers/search` | GET | Viewer | Customer search by name/phone/IC |
 | `/api/bookings` | POST | Manager | Create lease agreement with invoices |
+| `/api/leases` | GET | Viewer | List all leases with deposits + invoices |
+| `/api/leases/:id` | GET | Viewer | Single lease detail |
 | `/api/leases/:id` | PATCH | Manager | Edit unitPrice, endDate, notes on active/upcoming lease |
+| `/api/leases/:id/terminate` | PATCH | Manager | Terminate active/upcoming lease, cancel pending invoices |
+| `/api/leases/:id/complete` | PATCH | Manager | Complete active lease, set asset to VACANT |
+| `/api/leases/:id/invoices` | GET | Viewer | List invoices for a lease |
 | `/api/leases/:id/invoices` | POST | Manager | Manually add an invoice to a lease |
 | `/api/invoices/:id` | PATCH | Manager | Edit amount, period, dueDate on pending/overdue invoice |
 | `/api/invoices/:id/pay` | PATCH | Manager | Record full or partial payment on an invoice |
 | `/api/deposits/:id` | PATCH | Manager | Receive/refund/forfeit deposit (supports partial amounts) |
 | `/api/expenses/types` | GET, POST, PUT, DELETE | Viewer/Manager | Expense type CRUD |
-| `/api/expenses` | GET, POST, PUT, DELETE | Viewer/Manager | Expense CRUD (per unit) |
+| `/api/expenses` | GET, POST, PUT, DELETE | Viewer/Manager | Expense CRUD (per unit, filterable by unitId/propertyId) |
+| `/api/expenses/summary` | GET | Viewer | Hierarchical property → unit → expense totals |
 | `/api/profit` | GET | Viewer | Cash-basis profit by property/unit for a date range |
 | `/api/auth/*` | various | Public/Protected | Login, refresh, logout, password reset, user CRUD |
 | `/api/upload` | POST, GET, DELETE | Manager | File upload/download/delete |
-| `/api/reminders/*` | POST | Admin | Rental and lease expiry email reminders |
+| `/api/reminders/rental` | POST | Admin | Email tenants with invoices due within 7 days |
+| `/api/reminders/lease` | POST | Admin | Email lease expiry notices (within 30 days) |
+| `/api/health` | GET | Public | Health check endpoint |
 
 ### Database (`prisma/`)
 

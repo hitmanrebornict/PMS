@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { Edit2, Plus, Trash2, Search } from 'lucide-react';
+import { Edit2, Plus, Trash2, Search, Car, CheckCircle2, AlertCircle } from 'lucide-react';
 import { Carpark, AssetStatus } from '../../types';
 import { formatCurrency } from '../../utils';
+import { StatCard } from '../../components/common/StatCard';
 
 interface CarparksPageProps {
   carparks: Carpark[];
@@ -23,6 +24,10 @@ export function CarparksPage({ carparks, onAdd, onEdit, onDelete }: CarparksPage
     ? carparks.filter(c => c.carparkNumber.toLowerCase().includes(search.toLowerCase()))
     : carparks;
 
+  const occupied = carparks.filter(c => c.status === AssetStatus.OCCUPIED).length;
+  const vacant = carparks.filter(c => c.status === AssetStatus.VACANT).length;
+  const maintenance = carparks.filter(c => c.status === AssetStatus.MAINTENANCE).length;
+
   return (
     <div className="space-y-6">
       <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -38,6 +43,38 @@ export function CarparksPage({ carparks, onAdd, onEdit, onDelete }: CarparksPage
           Add Carpark
         </button>
       </header>
+
+      {/* Status Cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <StatCard
+          title="Total"
+          value={carparks.length}
+          icon={<Car className="text-blue-600" />}
+          bgColor="bg-blue-50"
+          subValue={`${carparks.length} lots`}
+        />
+        <StatCard
+          title="Occupied"
+          value={occupied}
+          icon={<CheckCircle2 className="text-rose-600" />}
+          bgColor="bg-rose-50"
+          subValue={`${carparks.length > 0 ? Math.round((occupied / carparks.length) * 100) : 0}%`}
+        />
+        <StatCard
+          title="Vacant"
+          value={vacant}
+          icon={<AlertCircle className="text-emerald-600" />}
+          bgColor="bg-emerald-50"
+          subValue={`${vacant} ready`}
+        />
+        <StatCard
+          title="Maintenance"
+          value={maintenance}
+          icon={<AlertCircle className="text-amber-600" />}
+          bgColor="bg-amber-50"
+          subValue={`${maintenance} lots`}
+        />
+      </div>
 
       {/* Search */}
       <div className="relative max-w-sm">
