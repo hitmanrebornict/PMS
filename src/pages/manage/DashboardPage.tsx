@@ -10,12 +10,15 @@ interface DashboardPageProps {
 }
 
 export function DashboardPage({ units, carparks, masterProperties }: DashboardPageProps) {
-  const totalAssets = units.length + carparks.length;
+  // Unit stats
   const occupiedUnits = units.filter(u => u.status === AssetStatus.OCCUPIED).length;
+  const vacantUnits = units.filter(u => u.status === AssetStatus.VACANT).length;
+  const maintenanceUnits = units.filter(u => u.status === AssetStatus.MAINTENANCE).length;
+
+  // Carpark stats
   const occupiedCarparks = carparks.filter(c => c.status === AssetStatus.OCCUPIED).length;
-  const occupied = occupiedUnits + occupiedCarparks;
-  const vacant = totalAssets - occupied - units.filter(u => u.status === AssetStatus.MAINTENANCE).length - carparks.filter(c => c.status === AssetStatus.MAINTENANCE).length;
-  const maintenance = units.filter(u => u.status === AssetStatus.MAINTENANCE).length + carparks.filter(c => c.status === AssetStatus.MAINTENANCE).length;
+  const vacantCarparks = carparks.filter(c => c.status === AssetStatus.VACANT).length;
+  const maintenanceCarparks = carparks.filter(c => c.status === AssetStatus.MAINTENANCE).length;
 
   return (
     <div className="space-y-8">
@@ -29,43 +32,48 @@ export function DashboardPage({ units, carparks, masterProperties }: DashboardPa
         </div>
       </header>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-        <StatCard
-          title="Total Assets"
-          value={totalAssets}
-          icon={<Home className="text-blue-600" />}
-          bgColor="bg-blue-50"
-          subValue={`${units.length} units, ${carparks.length} carparks`}
-        />
-        <StatCard
-          title="Occupied"
-          value={occupied}
-          icon={<CheckCircle2 className="text-rose-600" />}
-          bgColor="bg-rose-50"
-          subValue={`${totalAssets > 0 ? Math.round((occupied / totalAssets) * 100) : 0}% Occupancy`}
-        />
-        <StatCard
-          title="Vacant"
-          value={vacant}
-          icon={<AlertCircle className="text-emerald-600" />}
-          bgColor="bg-emerald-50"
-          subValue={`${vacant} assets ready`}
-        />
-        <StatCard
-          title="Maintenance"
-          value={maintenance}
-          icon={<AlertCircle className="text-amber-600" />}
-          bgColor="bg-amber-50"
-          subValue={`${maintenance} under maintenance`}
-        />
-      </div>
+      {/* ─── Units Section ──────────────────────────────────────────────── */}
+      <div className="space-y-4">
+        <h2 className="text-lg font-semibold text-slate-800 flex items-center gap-2">
+          <Home size={18} className="text-indigo-600" />
+          Units
+        </h2>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+          <StatCard
+            title="Total Units"
+            value={units.length}
+            icon={<Home className="text-blue-600" />}
+            bgColor="bg-blue-50"
+            subValue={`across ${masterProperties.length} properties`}
+          />
+          <StatCard
+            title="Occupied"
+            value={occupiedUnits}
+            icon={<CheckCircle2 className="text-rose-600" />}
+            bgColor="bg-rose-50"
+            subValue={`${units.length > 0 ? Math.round((occupiedUnits / units.length) * 100) : 0}% Occupancy`}
+          />
+          <StatCard
+            title="Vacant"
+            value={vacantUnits}
+            icon={<AlertCircle className="text-emerald-600" />}
+            bgColor="bg-emerald-50"
+            subValue={`${vacantUnits} units ready`}
+          />
+          <StatCard
+            title="Maintenance"
+            value={maintenanceUnits}
+            icon={<AlertCircle className="text-amber-600" />}
+            bgColor="bg-amber-50"
+            subValue={`${maintenanceUnits} under maintenance`}
+          />
+        </div>
+
         {/* Unit Status Grid */}
-        <div className="lg:col-span-2 bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
+        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
           <div className="p-6 border-b border-slate-100 flex justify-between items-center">
-            <h2 className="font-semibold text-slate-900">Unit Status</h2>
+            <h3 className="font-semibold text-slate-900">Unit Status</h3>
             <div className="flex gap-4 text-xs">
               <div className="flex items-center gap-1.5">
                 <div className="w-3 h-3 rounded-full bg-emerald-500"></div>
@@ -87,7 +95,7 @@ export function DashboardPage({ units, carparks, masterProperties }: DashboardPa
               if (propUnits.length === 0) return null;
               return (
                 <div key={prop.id}>
-                  <h3 className="text-sm font-semibold text-slate-600 mb-3">{prop.name}</h3>
+                  <h4 className="text-sm font-semibold text-slate-600 mb-3">{prop.name}</h4>
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
                     {propUnits.map(unit => (
                       <div
@@ -115,17 +123,53 @@ export function DashboardPage({ units, carparks, masterProperties }: DashboardPa
             )}
           </div>
         </div>
+      </div>
 
-        {/* Carpark Status */}
+      {/* ─── Carparks Section ───────────────────────────────────────────── */}
+      <div className="space-y-4">
+        <h2 className="text-lg font-semibold text-slate-800 flex items-center gap-2">
+          <Car size={18} className="text-indigo-600" />
+          Carparks
+        </h2>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+          <StatCard
+            title="Total Carparks"
+            value={carparks.length}
+            icon={<Car className="text-blue-600" />}
+            bgColor="bg-blue-50"
+            subValue={`${carparks.length} lots`}
+          />
+          <StatCard
+            title="Occupied"
+            value={occupiedCarparks}
+            icon={<CheckCircle2 className="text-rose-600" />}
+            bgColor="bg-rose-50"
+            subValue={`${carparks.length > 0 ? Math.round((occupiedCarparks / carparks.length) * 100) : 0}% Occupancy`}
+          />
+          <StatCard
+            title="Vacant"
+            value={vacantCarparks}
+            icon={<AlertCircle className="text-emerald-600" />}
+            bgColor="bg-emerald-50"
+            subValue={`${vacantCarparks} lots ready`}
+          />
+          <StatCard
+            title="Maintenance"
+            value={maintenanceCarparks}
+            icon={<AlertCircle className="text-amber-600" />}
+            bgColor="bg-amber-50"
+            subValue={`${maintenanceCarparks} under maintenance`}
+          />
+        </div>
+
+        {/* Carpark Status Grid */}
         <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
           <div className="p-6 border-b border-slate-100">
-            <h2 className="font-semibold text-slate-900 flex items-center gap-2">
-              <Car size={18} />
-              Carpark Status
-            </h2>
+            <h3 className="font-semibold text-slate-900">Carpark Status</h3>
           </div>
           <div className="p-6">
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
               {carparks.map(cp => (
                 <div
                   key={cp.id}

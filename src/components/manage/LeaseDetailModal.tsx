@@ -125,6 +125,10 @@ export function LeaseDetailModal({ isOpen, onClose, leaseId, onAction }: LeaseDe
   const [addingInvoice, setAddingInvoice] = useState(false);
   const [newInvoiceForm, setNewInvoiceForm] = useState({ periodStart: '', periodEnd: '', amount: '', dueDate: '' });
 
+  // ── Deposit amount edit state ──────────────────────────────────────────────
+  const [editingDepositAmount, setEditingDepositAmount] = useState(false);
+  const [depositAmountValue, setDepositAmountValue] = useState('');
+
   // ── Amount prompt state ───────────────────────────────────────────────────
   type PromptAction =
     | { kind: 'invoice-pay'; invoiceId: string; remaining: number }
@@ -153,6 +157,7 @@ export function LeaseDetailModal({ isOpen, onClose, leaseId, onAction }: LeaseDe
       setEditingInvoiceId(null);
       setAddingInvoice(false);
       setPrompt(null);
+      setEditingDepositAmount(false);
     }
   }, [isOpen, leaseId, fetchLease]);
 
@@ -280,6 +285,23 @@ export function LeaseDetailModal({ isOpen, onClose, leaseId, onAction }: LeaseDe
       });
       if (res.ok) { await fetchLease(); onAction(); }
       else { const d = await res.json(); alert(d.error || 'Failed to update deposit'); }
+    } finally { setActionLoading(false); }
+  };
+
+  // ── Deposit amount edit ────────────────────────────────────────────────
+
+  const handleSaveDepositAmount = async () => {
+    if (!lease?.deposit) return;
+    const newAmount = parseFloat(depositAmountValue);
+    if (isNaN(newAmount) || newAmount <= 0) return;
+    setActionLoading(true);
+    try {
+      const res = await apiFetch(`/api/deposits/${lease.deposit.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ action: 'editAmount', amount: newAmount }),
+      });
+      if (res.ok) { setEditingDepositAmount(false); await fetchLease(); onAction(); }
+      else { const d = await res.json(); alert(d.error || 'Failed to update deposit amount'); }
     } finally { setActionLoading(false); }
   };
 
@@ -421,9 +443,52 @@ export function LeaseDetailModal({ isOpen, onClose, leaseId, onAction }: LeaseDe
                 <div className="bg-white border border-slate-200 rounded-lg p-3 space-y-2">
                   <div className="flex items-center justify-between flex-wrap gap-2">
                     <div className="flex items-center gap-3 flex-wrap">
-                      <span className="font-medium text-slate-900">
-                        RM {lease.deposit.amount.toLocaleString('en-MY', { minimumFractionDigits: 2 })}
-                      </span>
+                      {editingDepositAmount ? (
+                        <div className="flex items-center gap-1.5">
+                          <div className="flex items-center border border-slate-300 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-indigo-500">
+                            <span className="px-2 py-1 bg-slate-50 text-slate-500 text-sm border-r border-slate-300">RM</span>
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              value={depositAmountValue}
+                              onChange={e => setDepositAmountValue(e.target.value)}
+                              className="w-28 px-2 py-1 text-sm focus:outline-none"
+                              autoFocus
+                            />
+                          </div>
+                          <button
+                            onClick={handleSaveDepositAmount}
+                            disabled={actionLoading || isNaN(parseFloat(depositAmountValue)) || parseFloat(depositAmountValue) <= 0}
+                            className="p-1 text-emerald-600 hover:bg-emerald-50 rounded disabled:opacity-50"
+                            title="Save"
+                          >
+                            <Check size={14} />
+                          </button>
+                          <button
+                            onClick={() => setEditingDepositAmount(false)}
+                            className="p-1 text-slate-400 hover:bg-slate-50 rounded"
+                            title="Cancel"
+                          >
+                            <X size={14} />
+                          </button>
+                        </div>
+                      ) : (
+                        <>
+                          <span className="font-medium text-slate-900">
+                            RM {lease.deposit.amount.toLocaleString('en-MY', { minimumFractionDigits: 2 })}
+                          </span>
+                          {lease.deposit.status !== 'REFUNDED' && lease.deposit.status !== 'PARTIALLY_REFUNDED' && lease.deposit.status !== 'FORFEITED' && (
+                            <button
+                              onClick={() => { setDepositAmountValue(String(lease.deposit!.amount)); setEditingDepositAmount(true); }}
+                              className="p-0.5 text-slate-400 hover:text-indigo-600 rounded"
+                              title="Edit deposit amount"
+                            >
+                              <Pencil size={12} />
+                            </button>
+                          )}
+                        </>
+                      )}
                       <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${depositStatusColors[lease.deposit.status]}`}>
                         {lease.deposit.status.replace(/_/g, ' ')}
                       </span>

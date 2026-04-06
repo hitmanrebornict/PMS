@@ -11,6 +11,7 @@ interface LeaseBookingModalProps {
   prefill?: {
     assetId: string;
     assetType: 'unit' | 'carpark';
+    assetName: string;
     date: string;
     suggestedPrice: number;
   } | null;
@@ -190,7 +191,7 @@ export function LeaseBookingModal({ isOpen, onClose, onSuccess, prefill }: Lease
         {/* Asset info */}
         {prefill && (
           <div className="bg-indigo-50 rounded-lg p-3 text-sm text-indigo-700">
-            Booking for <span className="font-semibold">{prefill.assetType === 'unit' ? 'Unit' : 'Carpark'}</span> &middot; Suggested price: MYR {prefill.suggestedPrice.toFixed(2)}
+            Booking for {prefill.assetType === 'unit' ? 'Unit' : 'Carpark'} <span className="font-semibold">{prefill.assetName}</span> &middot; Suggested price: MYR {prefill.suggestedPrice.toFixed(2)}
           </div>
         )}
 

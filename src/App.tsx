@@ -69,7 +69,7 @@ export default function App() {
   const [selectedUnit,           setSelectedUnit]           = useState<Unit | null>(null);
   const [selectedCarpark,        setSelectedCarpark]        = useState<Carpark | null>(null);
   const [selectedCustomer,       setSelectedCustomer]       = useState<Customer | null>(null);
-  const [leaseModalPrefill,     setLeaseModalPrefill]     = useState<{ assetId: string; assetType: 'unit' | 'carpark'; date: string; suggestedPrice: number } | null>(null);
+  const [leaseModalPrefill,     setLeaseModalPrefill]     = useState<{ assetId: string; assetType: 'unit' | 'carpark'; assetName: string; date: string; suggestedPrice: number } | null>(null);
   const [selectedExpenseType,   setSelectedExpenseType]   = useState<ExpenseType | null>(null);
   const [selectedExpense,       setSelectedExpense]       = useState<Expense | null>(null);
   const [expensePrefillUnitId,  setExpensePrefillUnitId]  = useState<string | null>(null);
@@ -179,11 +179,11 @@ export default function App() {
     const dataSourceId = fd.get('dataSourceId') as string;
     const payload = {
       name:           fd.get('name') as string,
-      phoneLocal:     fd.get('phoneLocal') as string,
+      phoneLocal:     (fd.get('phoneLocal') as string) || undefined,
       phoneOther:     (fd.get('phoneOther') as string) || undefined,
       icPassport:     fd.get('icPassport') as string,
       email:          (fd.get('email') as string) || undefined,
-      currentAddress: fd.get('currentAddress') as string,
+      currentAddress: (fd.get('currentAddress') as string) || undefined,
       wechatId:       (fd.get('wechatId') as string) || undefined,
       whatsappNumber: (fd.get('whatsappNumber') as string) || undefined,
       remark:         (fd.get('remark') as string) || undefined,
@@ -414,7 +414,7 @@ export default function App() {
     timeline: (
       <TimelinePage
         onBookAsset={(asset) => {
-          setLeaseModalPrefill({ assetId: asset.id, assetType: asset.type, date: asset.date, suggestedPrice: asset.suggestedPrice });
+          setLeaseModalPrefill({ assetId: asset.id, assetType: asset.type, assetName: asset.name, date: asset.date, suggestedPrice: asset.suggestedPrice });
           setIsLeaseModalOpen(true);
         }}
       />

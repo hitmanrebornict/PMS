@@ -8,12 +8,12 @@ const router = Router();
 
 // ─── Zod Schemas ────────────────────────────────────────────────────────────
 
-const createCustomerSchema = z.object({
+const customerBaseSchema = z.object({
   name: z.string().min(1).max(200),
-  phoneLocal: z.string().min(1).max(30),
-  icPassport: z.string().min(1).max(50),
-  currentAddress: z.string().min(1).max(500),
+  phoneLocal: z.string().max(30).optional(),
   phoneOther: z.string().max(30).optional(),
+  icPassport: z.string().min(1).max(50),
+  currentAddress: z.string().max(500).optional(),
   email: z.string().email().optional().or(z.literal('')),
   wechatId: z.string().max(100).optional(),
   whatsappNumber: z.string().max(30).optional(),
@@ -21,7 +21,25 @@ const createCustomerSchema = z.object({
   dataSourceId: z.string().uuid().optional().nullable(),
 });
 
-const updateCustomerSchema = createCustomerSchema.partial();
+const atLeastOnePhone = (data: { phoneLocal?: string; phoneOther?: string }) =>
+  (data.phoneLocal && data.phoneLocal.trim().length > 0) ||
+  (data.phoneOther && data.phoneOther.trim().length > 0);
+
+const createCustomerSchema = customerBaseSchema.refine(atLeastOnePhone, {
+  message: 'At least one phone number (Local H/P or Overseas H/P) is required',
+  path: ['phoneLocal'],
+});
+
+const updateCustomerSchema = customerBaseSchema.partial().refine(
+  data => {
+    // Only enforce if both phone fields are explicitly provided as empty
+    const localGiven = data.phoneLocal !== undefined;
+    const otherGiven = data.phoneOther !== undefined;
+    if (localGiven && otherGiven) return atLeastOnePhone(data as any);
+    return true;
+  },
+  { message: 'At least one phone number is required', path: ['phoneLocal'] }
+);
 
 const includeDataSource = { dataSource: { select: { id: true, name: true } } } as any;
 

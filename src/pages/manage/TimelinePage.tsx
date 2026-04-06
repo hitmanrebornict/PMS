@@ -4,7 +4,7 @@ import { useApi } from '../../hooks/useApi';
 import { TimelineData, TimelineLease } from '../../types';
 
 interface TimelinePageProps {
-  onBookAsset: (asset: { id: string; type: 'unit' | 'carpark'; date: string; suggestedPrice: number }) => void;
+  onBookAsset: (asset: { id: string; type: 'unit' | 'carpark'; name: string; date: string; suggestedPrice: number }) => void;
 }
 
 function addDays(date: Date, days: number): Date {
@@ -151,7 +151,7 @@ export function TimelinePage({ onBookAsset }: TimelinePageProps) {
     const asset = rows.find(r => r.id === bookAssetId);
     if (!asset) return;
     setBookModalOpen(false);
-    onBookAsset({ id: asset.id, type: asset.type, date: toDateStr(today), suggestedPrice: asset.suggestedPrice });
+    onBookAsset({ id: asset.id, type: asset.type, name: asset.label, date: toDateStr(today), suggestedPrice: asset.suggestedPrice });
     setBookAssetId('');
   };
 
@@ -212,8 +212,8 @@ export function TimelinePage({ onBookAsset }: TimelinePageProps) {
       </header>
 
       {/* Timeline Grid */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm">
+        <div className="overflow-auto max-h-[calc(100vh-280px)]">
           <div
             className="min-w-max"
             style={{
@@ -221,8 +221,8 @@ export function TimelinePage({ onBookAsset }: TimelinePageProps) {
               gridTemplateColumns: `160px repeat(${dayCount}, minmax(${dayCount <= 14 ? '60px' : '36px'}, 1fr))`,
             }}
           >
-            {/* Date header row */}
-            <div className="sticky left-0 z-20 bg-slate-50 border-b border-r border-slate-200 px-3 py-2 text-xs font-semibold text-slate-500 uppercase">
+            {/* Date header row — sticky on vertical scroll */}
+            <div className="sticky left-0 top-0 z-30 bg-slate-50 border-b border-r border-slate-200 px-3 py-2 text-xs font-semibold text-slate-500 uppercase">
               Asset
             </div>
             {dates.map((date, i) => {
@@ -231,7 +231,7 @@ export function TimelinePage({ onBookAsset }: TimelinePageProps) {
               return (
                 <div
                   key={i}
-                  className={`border-b border-r border-slate-200 px-1 py-2 text-center text-xs ${
+                  className={`sticky top-0 z-20 border-b border-r border-slate-200 px-1 py-2 text-center text-xs ${
                     isToday ? 'bg-indigo-50 font-bold text-indigo-700' : isWeekend ? 'bg-slate-50 text-slate-400' : 'bg-slate-50 text-slate-500'
                   }`}
                 >
@@ -298,7 +298,7 @@ export function TimelinePage({ onBookAsset }: TimelinePageProps) {
                       return (
                         <div
                           key={colIdx}
-                          onClick={() => onBookAsset({ id: row.id, type: row.type, date: toDateStr(date), suggestedPrice: row.suggestedPrice })}
+                          onClick={() => onBookAsset({ id: row.id, type: row.type, name: row.label, date: toDateStr(date), suggestedPrice: row.suggestedPrice })}
                           className={`border-b border-r border-slate-100 cursor-pointer group transition-colors ${
                             isToday ? 'bg-indigo-50/30' : isWeekend ? 'bg-slate-50/50' : ''
                           } hover:bg-indigo-50`}
