@@ -2,15 +2,15 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "Vite Dev Server",
+      "name": "dev",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev:client"],
+      "runtimeArgs": ["run", "dev"],
       "port": 3000
     },
     {
-      "name": "Express API Server",
-      "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev:server"],
+      "name": "Docker App",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["-e", "setTimeout(()=>{},999999)"],
       "port": 5000
     }
   ]

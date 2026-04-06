@@ -15,7 +15,15 @@
       "Bash(curl -s -X POST http://localhost:5000/api/auth/login -H \"Content-Type: application/json\" -d '{\"\"email\"\":\"\"admin@versahome.com.my\"\",\"\"password\"\":\"\"Admin@VersaHome2026!\"\"}')",
       "Bash(curl -s -X POST http://localhost:5000/api/auth/login -H \"Content-Type: application/json\" -d \"{\"\"email\"\":\"\"admin@versahome.com.my\"\",\"\"password\"\":\"\"Admin@VersaHome2026!\"\"}\")",
       "Bash(npx tsc:*)",
-      "Bash(xargs wc:*)"
+      "Bash(xargs wc:*)",
+      "Bash(powershell.exe -Command \"Get-Service postgresql*\")",
+      "Bash(cmd.exe /c \"sc query postgresql-x64-16 2>&1 || sc query postgresql 2>&1 || echo NO_PG_SERVICE\")",
+      "Bash(docker --version)",
+      "Bash(docker info:*)",
+      "Bash(docker-compose build:*)",
+      "Bash(docker-compose exec:*)",
+      "Bash(docker-compose logs:*)",
+      "Bash(git add:*)"
     ]
   }
 }

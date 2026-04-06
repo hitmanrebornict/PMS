@@ -21,7 +21,10 @@ export function CarparksPage({ carparks, onAdd, onEdit, onDelete }: CarparksPage
   const [search, setSearch] = useState('');
 
   const filtered = search
-    ? carparks.filter(c => c.carparkNumber.toLowerCase().includes(search.toLowerCase()))
+    ? carparks.filter(c =>
+        c.carparkNumber.toLowerCase().includes(search.toLowerCase()) ||
+        (c.unitNo ?? '').toLowerCase().includes(search.toLowerCase())
+      )
     : carparks;
 
   const occupied = carparks.filter(c => c.status === AssetStatus.OCCUPIED).length;
@@ -94,6 +97,7 @@ export function CarparksPage({ carparks, onAdd, onEdit, onDelete }: CarparksPage
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200">
                 <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Carpark #</th>
+                <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Unit No</th>
                 <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Suggested Rent</th>
                 <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Status</th>
                 <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider text-right">Actions</th>
@@ -104,6 +108,9 @@ export function CarparksPage({ carparks, onAdd, onEdit, onDelete }: CarparksPage
                 <tr key={carpark.id} className="hover:bg-slate-50 transition-colors">
                   <td className="px-6 py-4">
                     <span className="font-bold text-slate-900">{carpark.carparkNumber}</span>
+                  </td>
+                  <td className="px-6 py-4">
+                    <span className="text-slate-600 text-sm">{carpark.unitNo || <span className="text-slate-300">—</span>}</span>
                   </td>
                   <td className="px-6 py-4">
                     <span className="font-semibold text-slate-900">{formatCurrency(carpark.suggestedRentalPrice)}</span>
@@ -133,7 +140,7 @@ export function CarparksPage({ carparks, onAdd, onEdit, onDelete }: CarparksPage
               ))}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={4} className="px-6 py-12 text-center text-slate-400 italic">
+                  <td colSpan={5} className="px-6 py-12 text-center text-slate-400 italic">
                     {search ? 'No carparks match your search.' : 'No carparks found.'}
                   </td>
                 </tr>

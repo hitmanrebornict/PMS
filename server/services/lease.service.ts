@@ -3,12 +3,28 @@ import { BillingCycle, LeaseStatus } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 
 interface CreateLeaseInput {
-  customer: {
+  renterType: 'customer' | 'company';
+  // Individual customer
+  customer?: {
     icPassport: string;
     name: string;
     phoneLocal: string;
     email?: string;
     currentAddress?: string;
+  };
+  // Company — either existing id or new record
+  companyId?: string | null;
+  company?: {
+    name: string;
+    managerName?: string;
+    email?: string;
+    phone?: string;
+    tinNumber?: string;
+    address?: string;
+    wechatId?: string;
+    whatsappNumber?: string;
+    dataSourceId?: string | null;
+    remark?: string;
   };
   unitId: string | null;
   carparkId: string | null;
@@ -63,29 +79,13 @@ export function generateInvoiceData(
   const invoices: Array<{ periodStart: Date; periodEnd: Date; amount: number; dueDate: Date }> = [];
 
   if (billingCycle === 'DAILY') {
-    // Single invoice for the total amount
     invoices.push({
       periodStart: startDate,
       periodEnd: endDate,
       amount: totalAmount,
       dueDate: startDate,
     });
-  } else if (billingCycle === 'FIXED_TERM') {
-    // One invoice per calendar month
-    let current = new Date(startDate);
-    while (current < endDate) {
-      const monthEnd = new Date(current.getFullYear(), current.getMonth() + 1, current.getDate());
-      const periodEnd = monthEnd > endDate ? endDate : monthEnd;
-      invoices.push({
-        periodStart: new Date(current),
-        periodEnd,
-        amount: unitPrice,
-        dueDate: new Date(current),
-      });
-      current = monthEnd;
-    }
-  } else if (billingCycle === 'MONTHLY') {
-    // One invoice per calendar month for the full term
+  } else if (billingCycle === 'FIXED_TERM' || billingCycle === 'MONTHLY') {
     let current = new Date(startDate);
     while (current < endDate) {
       const monthEnd = new Date(current.getFullYear(), current.getMonth() + 1, current.getDate());
@@ -113,12 +113,10 @@ export function calculateTotalAmount(
   unitPrice: number,
 ): number {
   if (billingCycle === 'DAILY') {
-    // Inclusive both ends: 05/04 → 07/04 = 3 days
     const diffMs = endDate.getTime() - startDate.getTime();
     const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24)) + 1 || 1;
     return diffDays * unitPrice;
   } else {
-    // FIXED_TERM and MONTHLY: count calendar months between start and end
     const months =
       (endDate.getFullYear() - startDate.getFullYear()) * 12 +
       (endDate.getMonth() - startDate.getMonth()) || 1;
@@ -130,7 +128,7 @@ export function calculateTotalAmount(
  * Create a lease agreement with all related records in a single transaction.
  */
 export async function createLease(input: CreateLeaseInput) {
-  const { customer, unitId, carparkId, startDate, endDate, billingCycle, unitPrice, depositAmount, notes } = input;
+  const { renterType, customer, companyId, company, unitId, carparkId, startDate, endDate, billingCycle, unitPrice, depositAmount, notes } = input;
 
   const totalAmount = calculateTotalAmount(startDate, endDate, billingCycle, unitPrice);
 
@@ -145,38 +143,65 @@ export async function createLease(input: CreateLeaseInput) {
     else if (carparkId) conflictWhere.carparkId = carparkId;
 
     const conflictCount = await tx.leaseAgreement.count({ where: conflictWhere });
-    if (conflictCount > 0) {
-      throw new Error('CONFLICT');
-    }
+    if (conflictCount > 0) throw new Error('CONFLICT');
 
-    // 2. Customer upsert
-    const customerRecord = await tx.customer.upsert({
-      where: { icPassport: customer.icPassport },
-      update: {
-        name: customer.name,
-        phoneLocal: customer.phoneLocal,
-        ...(customer.email ? { email: customer.email } : {}),
-      },
-      create: {
-        name: customer.name,
-        phoneLocal: customer.phoneLocal,
-        icPassport: customer.icPassport,
-        email: customer.email || null,
-        currentAddress: customer.currentAddress || '',
-      },
-    });
-
-    // 3. Create lease
+    // 2. Resolve renter
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const leaseStart = new Date(startDate);
     leaseStart.setHours(0, 0, 0, 0);
-
     const status: LeaseStatus = leaseStart <= today ? 'ACTIVE' : 'UPCOMING';
 
-    const lease = await tx.leaseAgreement.create({
+    let resolvedCustomerId: string | null = null;
+    let resolvedCompanyId: string | null = null;
+
+    if (renterType === 'customer' && customer) {
+      // Upsert customer by icPassport
+      const customerRecord = await tx.customer.upsert({
+        where: { icPassport: customer.icPassport },
+        update: {
+          name: customer.name,
+          phoneLocal: customer.phoneLocal,
+          ...(customer.email ? { email: customer.email } : {}),
+        },
+        create: {
+          name: customer.name,
+          phoneLocal: customer.phoneLocal,
+          icPassport: customer.icPassport,
+          email: customer.email || null,
+          currentAddress: customer.currentAddress || '',
+        },
+      });
+      resolvedCustomerId = customerRecord.id;
+    } else if (renterType === 'company') {
+      if (companyId) {
+        // Use existing company
+        resolvedCompanyId = companyId;
+      } else if (company) {
+        // Create new company
+        const newCompany: any = await (tx as any).company.create({
+          data: {
+            name: company.name,
+            managerName: company.managerName || null,
+            email: company.email || null,
+            phone: company.phone || null,
+            tinNumber: company.tinNumber || null,
+            address: company.address || null,
+            wechatId: company.wechatId || null,
+            whatsappNumber: company.whatsappNumber || null,
+            dataSourceId: company.dataSourceId || null,
+            remark: company.remark || null,
+          },
+        });
+        resolvedCompanyId = newCompany.id;
+      }
+    }
+
+    // 3. Create lease
+    const lease = await (tx.leaseAgreement as any).create({
       data: {
-        customerId: customerRecord.id,
+        customerId: resolvedCustomerId,
+        companyId: resolvedCompanyId,
         unitId,
         carparkId,
         startDate,
@@ -217,20 +242,10 @@ export async function createLease(input: CreateLeaseInput) {
 
     // 6. Update asset status if lease starts today or earlier
     if (status === 'ACTIVE') {
-      if (unitId) {
-        await tx.unit.update({
-          where: { id: unitId },
-          data: { status: 'OCCUPIED' },
-        });
-      }
-      if (carparkId) {
-        await tx.carpark.update({
-          where: { id: carparkId },
-          data: { status: 'OCCUPIED' },
-        });
-      }
+      if (unitId) await tx.unit.update({ where: { id: unitId }, data: { status: 'OCCUPIED' } });
+      if (carparkId) await tx.carpark.update({ where: { id: carparkId }, data: { status: 'OCCUPIED' } });
     }
 
-    return { lease, deposit, invoices, customer: customerRecord };
+    return { lease, deposit, invoices };
   });
 }

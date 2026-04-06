@@ -37,13 +37,14 @@ function serializeLease(lease: any) {
 
 router.get('/', authenticate, requireViewer, async (_req: AuthRequest, res: Response) => {
   try {
-    const leases = await prisma.leaseAgreement.findMany({
+    const leases: any[] = await (prisma.leaseAgreement.findMany as any)({
       include: {
         customer: { select: { id: true, name: true, phoneLocal: true, icPassport: true } },
-        unit: { select: { id: true, unitNumber: true, property: { select: { name: true } } } },
+        company:  { select: { id: true, name: true, phone: true } },
+        unit:    { select: { id: true, unitNumber: true, property: { select: { name: true } } } },
         carpark: { select: { id: true, carparkNumber: true } },
         deposit: true,
-        _count: { select: { invoices: true } },
+        _count:  { select: { invoices: true } },
       },
       orderBy: { startDate: 'desc' },
     });
@@ -59,7 +60,7 @@ router.get('/', authenticate, requireViewer, async (_req: AuthRequest, res: Resp
 
 router.get('/:id', authenticate, requireViewer, async (req: AuthRequest, res: Response) => {
   try {
-    const lease = await prisma.leaseAgreement.findUnique({
+    const lease: any = await (prisma.leaseAgreement.findUnique as any)({
       where: { id: req.params.id },
       include: {
         customer: {
@@ -68,11 +69,17 @@ router.get('/:id', authenticate, requireViewer, async (req: AuthRequest, res: Re
             email: true, currentAddress: true,
           },
         },
-        unit: { select: { id: true, unitNumber: true, property: { select: { name: true } } } },
+        company: {
+          select: {
+            id: true, name: true, managerName: true, email: true,
+            phone: true, tinNumber: true, address: true,
+          },
+        },
+        unit:    { select: { id: true, unitNumber: true, property: { select: { name: true } } } },
         carpark: { select: { id: true, carparkNumber: true } },
         deposit: true,
         invoices: { orderBy: { periodStart: 'asc' } },
-        _count: { select: { invoices: true } },
+        _count:  { select: { invoices: true } },
       },
     });
 
@@ -88,14 +95,23 @@ router.get('/:id', authenticate, requireViewer, async (req: AuthRequest, res: Re
   }
 });
 
-// ─── PATCH /:id/terminate — Terminate a lease ─────────────────────────────
+// ─── PATCH /:id/terminate — Terminate a lease (optionally with early end date) ─
+
+const terminateLeaseSchema = z.object({
+  terminationDate: z.string().optional(), // ISO date string, must be within lease period
+});
 
 router.patch('/:id/terminate', authenticate, requireManager, async (req: AuthRequest, res: Response) => {
+  const parsed = terminateLeaseSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: 'Invalid request body' });
+    return;
+  }
+
   try {
     const result = await prisma.$transaction(async (tx) => {
       const lease = await tx.leaseAgreement.findUnique({
         where: { id: req.params.id },
-        include: { deposit: true },
       });
 
       if (!lease) throw new Error('NOT_FOUND');
@@ -103,15 +119,37 @@ router.patch('/:id/terminate', authenticate, requireManager, async (req: AuthReq
         throw new Error('INVALID_STATUS');
       }
 
-      // Update lease status
+      // Resolve termination date
+      let terminationDate: Date | null = null;
+      if (parsed.data.terminationDate) {
+        terminationDate = new Date(parsed.data.terminationDate);
+        if (isNaN(terminationDate.getTime())) throw new Error('INVALID_DATE');
+        // Must be within the lease period (inclusive of start, inclusive of end)
+        if (terminationDate < lease.startDate || terminationDate > lease.endDate) {
+          throw new Error('DATE_OUT_OF_RANGE');
+        }
+      }
+
+      // Update lease: set status and optionally shorten endDate
       const updated = await tx.leaseAgreement.update({
         where: { id: lease.id },
-        data: { status: 'TERMINATED' },
+        data: {
+          status: 'TERMINATED',
+          ...(terminationDate ? { endDate: terminationDate } : {}),
+        },
       });
 
-      // Cancel all PENDING invoices
+      // Cancel PENDING invoices that start after the termination date (or all if no date given)
+      const invoiceCancelWhere: any = {
+        leaseId: lease.id,
+        status: 'PENDING',
+      };
+      if (terminationDate) {
+        // Keep invoices whose period has already started on or before the termination date
+        invoiceCancelWhere.periodStart = { gt: terminationDate };
+      }
       await tx.invoice.updateMany({
-        where: { leaseId: lease.id, status: 'PENDING' },
+        where: invoiceCancelWhere,
         data: { status: 'CANCELLED' },
       });
 
@@ -134,6 +172,14 @@ router.patch('/:id/terminate', authenticate, requireManager, async (req: AuthReq
     }
     if (err.message === 'INVALID_STATUS') {
       res.status(400).json({ error: 'Only ACTIVE or UPCOMING leases can be terminated' });
+      return;
+    }
+    if (err.message === 'INVALID_DATE') {
+      res.status(400).json({ error: 'Invalid termination date' });
+      return;
+    }
+    if (err.message === 'DATE_OUT_OF_RANGE') {
+      res.status(400).json({ error: 'Termination date must be within the lease period' });
       return;
     }
     console.error('Terminate lease error:', err);

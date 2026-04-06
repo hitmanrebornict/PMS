@@ -139,8 +139,31 @@ model DataSource {
   updatedAt   DateTime @updatedAt
 
   customers Customer[]
+  companies Company[]
 
   @@map("data_sources")
+}
+
+model Company {
+  id             String    @id @default(uuid())
+  name           String
+  managerName    String?
+  email          String?
+  phone          String?
+  tinNumber      String?
+  address        String?
+  wechatId       String?
+  whatsappNumber String?
+  dataSourceId   String?
+  remark         String?
+  isActive       Boolean   @default(true)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  dataSource DataSource?      @relation(fields: [dataSourceId], references: [id], onDelete: SetNull)
+  leases     LeaseAgreement[]
+
+  @@map("companies")
 }
 
 model Customer {
@@ -204,6 +227,7 @@ model Unit {
 model Carpark {
   id                   String      @id @default(uuid())
   carparkNumber        String      @unique
+  unitNo               String?
   suggestedRentalPrice Decimal     @db.Decimal(10, 2)
   status               AssetStatus @default(VACANT)
   isActive             Boolean     @default(true)
@@ -219,7 +243,8 @@ model Carpark {
 
 model LeaseAgreement {
   id           String       @id @default(uuid())
-  customerId   String
+  customerId   String?
+  companyId    String?
   unitId       String?
   carparkId    String?
   startDate    DateTime
@@ -232,9 +257,10 @@ model LeaseAgreement {
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
 
-  customer Customer      @relation(fields: [customerId], references: [id], onDelete: Restrict)
-  unit     Unit?          @relation(fields: [unitId], references: [id], onDelete: Restrict)
-  carpark  Carpark?       @relation(fields: [carparkId], references: [id], onDelete: Restrict)
+  customer Customer? @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  company  Company?  @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  unit     Unit?     @relation(fields: [unitId], references: [id], onDelete: Restrict)
+  carpark  Carpark?  @relation(fields: [carparkId], references: [id], onDelete: Restrict)
   deposit  LeaseDeposit?
   invoices Invoice[]
 

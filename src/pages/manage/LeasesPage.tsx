@@ -44,7 +44,7 @@ function LeaseTable({ rows, onViewDetail }: { rows: Lease[]; onViewDetail: (l: L
           <thead>
             <tr className="border-b border-slate-100 bg-slate-50">
               <th className="text-left px-4 py-3 font-semibold text-slate-600">Asset</th>
-              <th className="text-left px-4 py-3 font-semibold text-slate-600">Customer</th>
+              <th className="text-left px-4 py-3 font-semibold text-slate-600">Renter</th>
               <th className="text-left px-4 py-3 font-semibold text-slate-600 hidden md:table-cell">Period</th>
               <th className="text-left px-4 py-3 font-semibold text-slate-600 hidden lg:table-cell">Billing</th>
               <th className="text-right px-4 py-3 font-semibold text-slate-600">Amount</th>
@@ -65,8 +65,19 @@ function LeaseTable({ rows, onViewDetail }: { rows: Lease[]; onViewDetail: (l: L
                     : `Carpark ${lease.carpark?.carparkNumber}`}
                 </td>
                 <td className="px-4 py-3 text-slate-600">
-                  <div>{lease.customer.name}</div>
-                  <div className="text-xs text-slate-400">{lease.customer.phoneLocal}</div>
+                  {lease.company ? (
+                    <>
+                      <div>{lease.company.name}</div>
+                      <div className="text-xs text-slate-400">Company</div>
+                    </>
+                  ) : lease.customer ? (
+                    <>
+                      <div>{lease.customer.name}</div>
+                      <div className="text-xs text-slate-400">{lease.customer.phoneLocal}</div>
+                    </>
+                  ) : (
+                    <span className="text-slate-300">—</span>
+                  )}
                 </td>
                 <td className="px-4 py-3 text-slate-600 hidden md:table-cell">
                   {formatDate(lease.startDate)} – {formatDate(lease.endDate)}
@@ -113,8 +124,9 @@ export function LeasesPage({ leases, onViewDetail }: LeasesPageProps) {
       const asset = l.unit
         ? `${l.unit.unitNumber} ${l.unit.property.name}`.toLowerCase()
         : `carpark ${l.carpark?.carparkNumber}`.toLowerCase();
-      const customer = l.customer.name.toLowerCase();
-      if (!asset.includes(q) && !customer.includes(q) && !l.customer.phoneLocal.includes(q)) return false;
+      const renterName = (l.company?.name ?? l.customer?.name ?? '').toLowerCase();
+      const renterPhone = l.customer?.phoneLocal ?? '';
+      if (!asset.includes(q) && !renterName.includes(q) && !renterPhone.includes(q)) return false;
     }
     if (dateFrom && new Date(l.startDate).getTime() < new Date(dateFrom).getTime()) return false;
     if (dateTo && new Date(l.endDate).getTime() > new Date(dateTo).getTime()) return false;

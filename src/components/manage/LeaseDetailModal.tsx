@@ -138,6 +138,10 @@ export function LeaseDetailModal({ isOpen, onClose, leaseId, onAction }: LeaseDe
 
   const [prompt, setPrompt] = useState<PromptAction | null>(null);
 
+  // ── Terminate date prompt state ───────────────────────────────────────────
+  const [terminatePromptOpen, setTerminatePromptOpen] = useState(false);
+  const [terminationDate, setTerminationDate] = useState('');
+
   const fetchLease = useCallback(async () => {
     if (!leaseId) return;
     setLoading(true);
@@ -158,16 +162,32 @@ export function LeaseDetailModal({ isOpen, onClose, leaseId, onAction }: LeaseDe
       setAddingInvoice(false);
       setPrompt(null);
       setEditingDepositAmount(false);
+      setTerminatePromptOpen(false);
     }
   }, [isOpen, leaseId, fetchLease]);
 
   // ── Lease actions ─────────────────────────────────────────────────────────
 
-  const handleTerminate = async () => {
-    if (!lease || !confirm('Are you sure you want to terminate this lease? All pending invoices will be cancelled.')) return;
+  const startTerminate = () => {
+    if (!lease) return;
+    // Default to today, clamped within the lease period
+    const today = new Date().toISOString().slice(0, 10);
+    const leaseStart = toInputDate(lease.startDate);
+    const leaseEnd = toInputDate(lease.endDate);
+    const defaultDate = today < leaseStart ? leaseStart : today > leaseEnd ? leaseEnd : today;
+    setTerminationDate(defaultDate);
+    setTerminatePromptOpen(true);
+  };
+
+  const handleTerminate = async (date: string) => {
+    if (!lease) return;
+    setTerminatePromptOpen(false);
     setActionLoading(true);
     try {
-      const res = await apiFetch(`/api/leases/${lease.id}/terminate`, { method: 'PATCH' });
+      const res = await apiFetch(`/api/leases/${lease.id}/terminate`, {
+        method: 'PATCH',
+        body: JSON.stringify({ terminationDate: date }),
+      });
       if (res.ok) { await fetchLease(); onAction(); }
       else { const d = await res.json(); alert(d.error || 'Failed to terminate lease'); }
     } finally { setActionLoading(false); }
@@ -401,15 +421,44 @@ export function LeaseDetailModal({ isOpen, onClose, leaseId, onAction }: LeaseDe
                 </div>
               ) : (
                 <div className="grid grid-cols-2 gap-3 text-sm">
-                  <div>
-                    <p className="text-slate-500">Customer</p>
-                    <p className="font-medium text-slate-900">{lease.customer.name}</p>
-                    <p className="text-xs text-slate-400">{lease.customer.phoneLocal}</p>
-                  </div>
-                  <div>
-                    <p className="text-slate-500">IC/Passport</p>
-                    <p className="font-medium text-slate-900">{lease.customer.icPassport}</p>
-                  </div>
+                  {lease.company ? (
+                    <>
+                      <div>
+                        <p className="text-slate-500">Company</p>
+                        <p className="font-medium text-slate-900">{lease.company.name}</p>
+                        {lease.company.phone && <p className="text-xs text-slate-400">{lease.company.phone}</p>}
+                      </div>
+                      <div>
+                        <p className="text-slate-500">Manager</p>
+                        <p className="font-medium text-slate-900">{lease.company.managerName || '—'}</p>
+                        {lease.company.email && <p className="text-xs text-slate-400">{lease.company.email}</p>}
+                      </div>
+                      {lease.company.tinNumber && (
+                        <div>
+                          <p className="text-slate-500">TIN</p>
+                          <p className="font-medium text-slate-900">{lease.company.tinNumber}</p>
+                        </div>
+                      )}
+                      {lease.company.address && (
+                        <div className={lease.company.tinNumber ? '' : 'col-span-2'}>
+                          <p className="text-slate-500">Address</p>
+                          <p className="font-medium text-slate-900">{lease.company.address}</p>
+                        </div>
+                      )}
+                    </>
+                  ) : lease.customer ? (
+                    <>
+                      <div>
+                        <p className="text-slate-500">Customer</p>
+                        <p className="font-medium text-slate-900">{lease.customer.name}</p>
+                        <p className="text-xs text-slate-400">{lease.customer.phoneLocal}</p>
+                      </div>
+                      <div>
+                        <p className="text-slate-500">IC/Passport</p>
+                        <p className="font-medium text-slate-900">{lease.customer.icPassport}</p>
+                      </div>
+                    </>
+                  ) : null}
                   <div>
                     <p className="text-slate-500">Period</p>
                     <p className="font-medium text-slate-900">{formatDate(lease.startDate)} – {formatDate(lease.endDate)}</p>
@@ -779,7 +828,7 @@ export function LeaseDetailModal({ isOpen, onClose, leaseId, onAction }: LeaseDe
                   </button>
                 )}
                 <button
-                  onClick={handleTerminate}
+                  onClick={startTerminate}
                   disabled={actionLoading}
                   className="px-4 py-2 text-sm font-medium bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
                 >
@@ -823,6 +872,49 @@ export function LeaseDetailModal({ isOpen, onClose, leaseId, onAction }: LeaseDe
           onConfirm={handlePromptConfirm}
           onCancel={() => setPrompt(null)}
         />
+      )}
+
+      {/* ─── Terminate Date Prompt ──────────────────────────────────────────── */}
+      {terminatePromptOpen && lease && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setTerminatePromptOpen(false)} />
+          <div className="relative bg-white rounded-xl shadow-xl p-5 w-full max-w-sm space-y-4">
+            <h3 className="font-semibold text-slate-900">Terminate Lease Early</h3>
+            <p className="text-sm text-slate-600">
+              Choose the date the lease ends. Uninvoiced periods after this date will be cancelled and the asset will be returned to the pool.
+            </p>
+            <div>
+              <label className="block text-sm text-slate-600 mb-1">Termination Date</label>
+              <input
+                type="date"
+                value={terminationDate}
+                min={toInputDate(lease.startDate)}
+                max={toInputDate(lease.endDate)}
+                onChange={e => setTerminationDate(e.target.value)}
+                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
+                autoFocus
+              />
+              <p className="text-xs text-slate-400 mt-1">
+                Lease period: {formatDate(lease.startDate)} – {formatDate(lease.endDate)}
+              </p>
+            </div>
+            <div className="flex gap-2 justify-end">
+              <button
+                onClick={() => setTerminatePromptOpen(false)}
+                className="px-4 py-2 text-sm text-slate-600 border border-slate-300 rounded-lg hover:bg-slate-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => terminationDate && handleTerminate(terminationDate)}
+                disabled={!terminationDate}
+                className="px-4 py-2 text-sm font-medium bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
+              >
+                Confirm Termination
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </>
   );
