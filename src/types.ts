@@ -163,7 +163,9 @@ export interface Lease {
   endDate: string;
   billingCycle: LeaseBillingCycle;
   unitPrice: number;
+  promotionAmount: number;
   totalAmount: number;
+  cleaningFee: number;
   status: LeaseStatusType;
   notes?: string;
   customer?: { id: string; name: string; phoneLocal: string; icPassport: string } | null;

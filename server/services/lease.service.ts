@@ -32,7 +32,9 @@ interface CreateLeaseInput {
   endDate: Date;
   billingCycle: BillingCycle;
   unitPrice: number;
+  promotionAmount: number;  // discount deducted from unitPrice per period
   depositAmount: number;
+  cleaningFee: number;      // auto-created as expense per billing period (unit leases only)
   notes?: string;
 }
 
@@ -68,6 +70,7 @@ export async function checkConflict(
 
 /**
  * Generate invoice data based on billing cycle.
+ * Invoice amount = unitPrice - promotionAmount (effective rate per period).
  */
 export function generateInvoiceData(
   startDate: Date,
@@ -75,8 +78,10 @@ export function generateInvoiceData(
   billingCycle: BillingCycle,
   unitPrice: number,
   totalAmount: number,
+  promotionAmount = 0,
 ): Array<{ periodStart: Date; periodEnd: Date; amount: number; dueDate: Date }> {
   const invoices: Array<{ periodStart: Date; periodEnd: Date; amount: number; dueDate: Date }> = [];
+  const effectivePrice = unitPrice - promotionAmount;
 
   if (billingCycle === 'DAILY') {
     invoices.push({
@@ -93,7 +98,7 @@ export function generateInvoiceData(
       invoices.push({
         periodStart: new Date(current),
         periodEnd,
-        amount: unitPrice,
+        amount: effectivePrice,
         dueDate: new Date(current),
       });
       current = monthEnd;
@@ -104,23 +109,26 @@ export function generateInvoiceData(
 }
 
 /**
- * Calculate total lease amount based on billing cycle.
+ * Calculate total lease amount based on billing cycle and effective price (after promotion).
  */
 export function calculateTotalAmount(
   startDate: Date,
   endDate: Date,
   billingCycle: BillingCycle,
   unitPrice: number,
+  promotionAmount = 0,
 ): number {
+  const effectivePrice = unitPrice - promotionAmount;
+
   if (billingCycle === 'DAILY') {
     const diffMs = endDate.getTime() - startDate.getTime();
     const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24)) + 1 || 1;
-    return diffDays * unitPrice;
+    return diffDays * effectivePrice;
   } else {
     const months =
       (endDate.getFullYear() - startDate.getFullYear()) * 12 +
       (endDate.getMonth() - startDate.getMonth()) || 1;
-    return months * unitPrice;
+    return months * effectivePrice;
   }
 }
 
@@ -128,9 +136,13 @@ export function calculateTotalAmount(
  * Create a lease agreement with all related records in a single transaction.
  */
 export async function createLease(input: CreateLeaseInput) {
-  const { renterType, customer, companyId, company, unitId, carparkId, startDate, endDate, billingCycle, unitPrice, depositAmount, notes } = input;
+  const {
+    renterType, customer, companyId, company,
+    unitId, carparkId, startDate, endDate, billingCycle,
+    unitPrice, promotionAmount, depositAmount, cleaningFee, notes,
+  } = input;
 
-  const totalAmount = calculateTotalAmount(startDate, endDate, billingCycle, unitPrice);
+  const totalAmount = calculateTotalAmount(startDate, endDate, billingCycle, unitPrice, promotionAmount);
 
   return prisma.$transaction(async (tx) => {
     // 1. Conflict check
@@ -156,7 +168,6 @@ export async function createLease(input: CreateLeaseInput) {
     let resolvedCompanyId: string | null = null;
 
     if (renterType === 'customer' && customer) {
-      // Upsert customer by icPassport
       const customerRecord = await tx.customer.upsert({
         where: { icPassport: customer.icPassport },
         update: {
@@ -175,10 +186,8 @@ export async function createLease(input: CreateLeaseInput) {
       resolvedCustomerId = customerRecord.id;
     } else if (renterType === 'company') {
       if (companyId) {
-        // Use existing company
         resolvedCompanyId = companyId;
       } else if (company) {
-        // Create new company
         const newCompany: any = await (tx as any).company.create({
           data: {
             name: company.name,
@@ -208,7 +217,9 @@ export async function createLease(input: CreateLeaseInput) {
         endDate,
         billingCycle,
         unitPrice: new Decimal(unitPrice),
+        promotionAmount: new Decimal(promotionAmount),
         totalAmount: new Decimal(totalAmount),
+        cleaningFee: new Decimal(cleaningFee),
         status,
         notes,
       },
@@ -223,8 +234,8 @@ export async function createLease(input: CreateLeaseInput) {
       },
     });
 
-    // 5. Generate invoices
-    const invoiceData = generateInvoiceData(startDate, endDate, billingCycle, unitPrice, totalAmount);
+    // 5. Generate invoices (amounts already net of promotion)
+    const invoiceData = generateInvoiceData(startDate, endDate, billingCycle, unitPrice, totalAmount, promotionAmount);
     const invoices = await Promise.all(
       invoiceData.map((inv) =>
         tx.invoice.create({
@@ -240,7 +251,35 @@ export async function createLease(input: CreateLeaseInput) {
       ),
     );
 
-    // 6. Update asset status if lease starts today or earlier
+    // 6. Auto-create cleaning fee expenses (unit leases only, one per billing period)
+    if (cleaningFee > 0 && unitId) {
+      // Upsert the "Cleaning Fee" expense type so it always exists
+      const cleaningFeeType = await tx.expenseType.upsert({
+        where: { name: 'Cleaning Fee' },
+        create: {
+          name: 'Cleaning Fee',
+          description: 'Automatically generated cleaning fee per billing period',
+        },
+        update: {},
+      });
+
+      // Create one expense per billing period (same periods as invoices)
+      await Promise.all(
+        invoiceData.map((inv) =>
+          tx.expense.create({
+            data: {
+              unitId,
+              expenseTypeId: cleaningFeeType.id,
+              amount: new Decimal(cleaningFee),
+              description: `Cleaning fee`,
+              expenseDate: inv.periodStart,
+            },
+          }),
+        ),
+      );
+    }
+
+    // 7. Update asset status if lease starts today or earlier
     if (status === 'ACTIVE') {
       if (unitId) await tx.unit.update({ where: { id: unitId }, data: { status: 'OCCUPIED' } });
       if (carparkId) await tx.carpark.update({ where: { id: carparkId }, data: { status: 'OCCUPIED' } });

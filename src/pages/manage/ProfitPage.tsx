@@ -17,12 +17,12 @@ function toInputDate(d: Date) {
 
 function defaultFrom() {
   const d = new Date();
-  return toInputDate(new Date(d.getFullYear(), d.getMonth(), 1));
+  return toInputDate(new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1)));
 }
 
 function defaultTo() {
   const d = new Date();
-  return toInputDate(new Date(d.getFullYear(), d.getMonth() + 1, 0));
+  return toInputDate(new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0)));
 }
 
 // ── Unit row ─────────────────────────────────────────────────────────────────
@@ -233,7 +233,7 @@ export function ProfitPage() {
             <div className="bg-white border border-slate-200 rounded-xl p-5">
               <div className="flex items-center gap-2 mb-1">
                 <TrendingUp size={16} className="text-emerald-500" />
-                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Total Income</p>
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Total Sales</p>
               </div>
               <p className="text-2xl font-bold text-emerald-600">RM {fmt(data.summary.totalIncome)}</p>
               <p className="text-xs text-slate-400 mt-1">Paid invoices only</p>

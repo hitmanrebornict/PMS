@@ -16,7 +16,9 @@ function serializeLease(lease: any) {
   return {
     ...lease,
     unitPrice: toNumber(lease.unitPrice),
+    promotionAmount: toNumber(lease.promotionAmount ?? 0),
     totalAmount: toNumber(lease.totalAmount),
+    cleaningFee: toNumber(lease.cleaningFee ?? 0),
     deposit: lease.deposit
       ? {
           ...lease.deposit,
