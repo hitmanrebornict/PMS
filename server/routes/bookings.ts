@@ -40,12 +40,14 @@ const createLeaseSchema = z.object({
   carparkId: z.string().uuid().nullable().default(null),
 
   // Lease terms
-  startDate:     z.string().min(1),
-  endDate:       z.string().min(1),
-  billingCycle:  z.enum(['DAILY', 'FIXED_TERM', 'MONTHLY']),
-  unitPrice:     z.number().positive(),
-  depositAmount: z.number().min(0),
-  notes:         z.string().optional(),
+  startDate:       z.string().min(1),
+  endDate:         z.string().min(1),
+  billingCycle:    z.enum(['DAILY', 'FIXED_TERM', 'MONTHLY']),
+  unitPrice:       z.number().positive(),
+  promotionAmount: z.number().min(0).default(0),
+  depositAmount:   z.number().min(0),
+  cleaningFee:     z.number().min(0).default(0),
+  notes:           z.string().optional(),
 });
 
 router.post('/', authenticate, requireManager, async (req: AuthRequest, res: Response) => {
@@ -87,18 +89,20 @@ router.post('/', authenticate, requireManager, async (req: AuthRequest, res: Res
 
   try {
     const result = await createLease({
-      renterType:    data.renterType,
-      customer:      data.customer,
-      companyId:     data.companyId ?? null,
-      company:       data.company,
-      unitId:        data.unitId,
-      carparkId:     data.carparkId,
+      renterType:      data.renterType,
+      customer:        data.customer,
+      companyId:       data.companyId ?? null,
+      company:         data.company,
+      unitId:          data.unitId,
+      carparkId:       data.carparkId,
       startDate,
       endDate,
-      billingCycle:  data.billingCycle,
-      unitPrice:     data.unitPrice,
-      depositAmount: data.depositAmount,
-      notes:         data.notes,
+      billingCycle:    data.billingCycle,
+      unitPrice:       data.unitPrice,
+      promotionAmount: data.promotionAmount,
+      depositAmount:   data.depositAmount,
+      cleaningFee:     data.cleaningFee,
+      notes:           data.notes,
     });
 
     res.status(201).json(result);

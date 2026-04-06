@@ -64,7 +64,9 @@ export function LeaseBookingModal({ isOpen, onClose, onSuccess, dataSources = []
   const [endDate, setEndDate] = useState('');
   const [billingCycle, setBillingCycle] = useState<LeaseBillingCycle>('MONTHLY');
   const [unitPrice, setUnitPrice] = useState('');
+  const [promotionAmount, setPromotionAmount] = useState('');
   const [depositAmount, setDepositAmount] = useState('');
+  const [cleaningFee, setCleaningFee] = useState('');
   const [notes, setNotes] = useState('');
 
   // ─── UI state ─────────────────────────────────────────────────────────────────
@@ -104,7 +106,9 @@ export function LeaseBookingModal({ isOpen, onClose, onSuccess, dataSources = []
       setEndDate('');
       setBillingCycle('MONTHLY');
       setUnitPrice(prefill?.suggestedPrice?.toString() || '');
+      setPromotionAmount('');
       setDepositAmount('');
+      setCleaningFee('');
       setNotes('');
       setSubmitting(false);
       setError(null);
@@ -182,27 +186,31 @@ export function LeaseBookingModal({ isOpen, onClose, onSuccess, dataSources = []
     setEndDate(end.toISOString().slice(0, 10));
   }, [startDate, billingCycle]);
 
-  // Calculate total
+  // Calculate effective rate and total
+  const effectiveRate = useMemo(() => {
+    const price = parseFloat(unitPrice);
+    const promo = parseFloat(promotionAmount) || 0;
+    if (isNaN(price) || price <= 0) return null;
+    return Math.max(0, price - promo);
+  }, [unitPrice, promotionAmount]);
+
   const totalAmount = useMemo(() => {
-    if (!startDate || !endDate || !unitPrice) return null;
+    if (!startDate || !endDate || effectiveRate === null) return null;
     const start = new Date(startDate);
     const end = new Date(endDate);
     if (isNaN(start.getTime()) || isNaN(end.getTime()) || end <= start) return null;
 
-    const price = parseFloat(unitPrice);
-    if (isNaN(price) || price <= 0) return null;
-
     if (billingCycle === 'DAILY') {
       const diffMs = end.getTime() - start.getTime();
       const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24)) + 1 || 1;
-      return diffDays * price;
+      return diffDays * effectiveRate;
     } else {
       const months =
         (end.getFullYear() - start.getFullYear()) * 12 +
         (end.getMonth() - start.getMonth()) || 1;
-      return months * price;
+      return months * effectiveRate;
     }
-  }, [startDate, endDate, billingCycle, unitPrice]);
+  }, [startDate, endDate, billingCycle, effectiveRate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -218,7 +226,9 @@ export function LeaseBookingModal({ isOpen, onClose, onSuccess, dataSources = []
         endDate,
         billingCycle,
         unitPrice: parseFloat(unitPrice),
+        promotionAmount: parseFloat(promotionAmount) || 0,
         depositAmount: parseFloat(depositAmount) || 0,
+        cleaningFee: parseFloat(cleaningFee) || 0,
         notes: notes || undefined,
       };
 
@@ -623,7 +633,7 @@ export function LeaseBookingModal({ isOpen, onClose, onSuccess, dataSources = []
           </div>
         </div>
 
-        {/* ─── Price & Deposit ─── */}
+        {/* ─── Rate & Promotion ─── */}
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">
@@ -640,6 +650,31 @@ export function LeaseBookingModal({ isOpen, onClose, onSuccess, dataSources = []
             />
           </div>
           <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">
+              Promotion / Discount (MYR)
+            </label>
+            <input
+              type="number"
+              step="0.01"
+              value={promotionAmount}
+              onChange={(e) => setPromotionAmount(e.target.value)}
+              className={inputClass}
+              placeholder="0.00"
+            />
+          </div>
+        </div>
+
+        {/* Effective rate display */}
+        {effectiveRate !== null && parseFloat(promotionAmount) > 0 && (
+          <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 flex justify-between items-center text-sm">
+            <span className="text-amber-700">Effective {billingCycle === 'DAILY' ? 'daily' : 'monthly'} rate after discount</span>
+            <span className="font-semibold text-amber-900">MYR {effectiveRate.toFixed(2)}</span>
+          </div>
+        )}
+
+        {/* ─── Deposit & Cleaning Fee ─── */}
+        <div className="grid grid-cols-2 gap-4">
+          <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">Deposit (MYR)</label>
             <input
               type="number"
@@ -650,7 +685,29 @@ export function LeaseBookingModal({ isOpen, onClose, onSuccess, dataSources = []
               placeholder="0.00"
             />
           </div>
+          {prefill?.assetType === 'unit' && (
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">
+                Cleaning Fee / {billingCycle === 'DAILY' ? 'period' : 'month'} (MYR)
+              </label>
+              <input
+                type="number"
+                step="0.01"
+                value={cleaningFee}
+                onChange={(e) => setCleaningFee(e.target.value)}
+                className={inputClass}
+                placeholder="0.00"
+              />
+            </div>
+          )}
         </div>
+
+        {/* Cleaning fee note */}
+        {prefill?.assetType === 'unit' && parseFloat(cleaningFee) > 0 && (
+          <p className="text-xs text-slate-500 -mt-2">
+            Cleaning fee will be auto-recorded as a monthly expense for this unit.
+          </p>
+        )}
 
         {/* ─── Total display ─── */}
         {totalAmount !== null && (

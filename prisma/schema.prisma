@@ -242,20 +242,22 @@ model Carpark {
 // ─── Lease Management ─────────────────────────────────────────────────────────
 
 model LeaseAgreement {
-  id           String       @id @default(uuid())
-  customerId   String?
-  companyId    String?
-  unitId       String?
-  carparkId    String?
-  startDate    DateTime
-  endDate      DateTime
-  billingCycle BillingCycle
-  unitPrice    Decimal      @db.Decimal(10, 2)
-  totalAmount  Decimal      @db.Decimal(10, 2)
-  status       LeaseStatus  @default(UPCOMING)
-  notes        String?
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
+  id              String       @id @default(uuid())
+  customerId      String?
+  companyId       String?
+  unitId          String?
+  carparkId       String?
+  startDate       DateTime
+  endDate         DateTime
+  billingCycle    BillingCycle
+  unitPrice       Decimal      @db.Decimal(10, 2)
+  promotionAmount Decimal      @default(0) @db.Decimal(10, 2)
+  totalAmount     Decimal      @db.Decimal(10, 2)
+  cleaningFee     Decimal      @default(0) @db.Decimal(10, 2)
+  status          LeaseStatus  @default(UPCOMING)
+  notes           String?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
 
   customer Customer? @relation(fields: [customerId], references: [id], onDelete: Restrict)
   company  Company?  @relation(fields: [companyId], references: [id], onDelete: Restrict)

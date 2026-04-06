@@ -468,12 +468,25 @@ export function LeaseDetailModal({ isOpen, onClose, leaseId, onAction }: LeaseDe
                     <p className="font-medium text-slate-900 capitalize">{lease.billingCycle.toLowerCase().replace('_', ' ')}</p>
                   </div>
                   <div>
-                    <p className="text-slate-500">Unit Price</p>
+                    <p className="text-slate-500">
+                      {lease.billingCycle === 'DAILY' ? 'Daily Rate' : 'Monthly Rate'}
+                    </p>
                     <p className="font-medium text-slate-900">RM {lease.unitPrice.toLocaleString('en-MY', { minimumFractionDigits: 2 })}</p>
+                    {lease.promotionAmount > 0 && (
+                      <p className="text-xs text-amber-600">
+                        − RM {lease.promotionAmount.toLocaleString('en-MY', { minimumFractionDigits: 2 })} promotion →{' '}
+                        <span className="font-medium">RM {(lease.unitPrice - lease.promotionAmount).toLocaleString('en-MY', { minimumFractionDigits: 2 })}</span>
+                      </p>
+                    )}
                   </div>
                   <div>
                     <p className="text-slate-500">Total Amount</p>
                     <p className="font-medium text-slate-900">RM {lease.totalAmount.toLocaleString('en-MY', { minimumFractionDigits: 2 })}</p>
+                    {lease.cleaningFee > 0 && (
+                      <p className="text-xs text-slate-400">
+                        + RM {lease.cleaningFee.toLocaleString('en-MY', { minimumFractionDigits: 2 })}/mo cleaning fee (in expenses)
+                      </p>
+                    )}
                   </div>
                   {lease.notes && (
                     <div className="col-span-2">
