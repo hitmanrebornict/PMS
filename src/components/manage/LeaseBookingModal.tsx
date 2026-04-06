@@ -163,6 +163,25 @@ export function LeaseBookingModal({ isOpen, onClose, onSuccess, dataSources = []
     };
   }, [companySearchQuery, companyMode, renterType, apiFetch]);
 
+  // Auto-generate end date when start date or billing cycle changes (MONTHLY / FIXED_TERM only)
+  useEffect(() => {
+    if (!startDate || billingCycle === 'DAILY') return;
+    const start = new Date(startDate);
+    if (isNaN(start.getTime())) return;
+
+    let end: Date;
+    if (billingCycle === 'MONTHLY') {
+      // 30 days from start (inclusive of start date)
+      end = new Date(start);
+      end.setDate(end.getDate() + 30);
+    } else {
+      // FIXED_TERM: same day next month
+      end = new Date(start);
+      end.setMonth(end.getMonth() + 1);
+    }
+    setEndDate(end.toISOString().slice(0, 10));
+  }, [startDate, billingCycle]);
+
   // Calculate total
   const totalAmount = useMemo(() => {
     if (!startDate || !endDate || !unitPrice) return null;
