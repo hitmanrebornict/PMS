@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'motion/react';
 
 // Types
 import {
-  Customer, Lease,
+  Customer, Lease, Company,
   MasterProperty, Unit, Carpark, UnitType, AssetStatus,
   ExpenseType, Expense, DataSource,
 } from './types';
@@ -22,6 +22,7 @@ import { UnitsPage }             from './pages/manage/UnitsPage';
 import { CarparksPage }          from './pages/manage/CarparksPage';
 import { TimelinePage }          from './pages/manage/TimelinePage';
 import { CustomersPage }         from './pages/manage/CustomersPage';
+import { CompaniesPage }         from './pages/manage/CompaniesPage';
 import { LeasesPage }            from './pages/manage/LeasesPage';
 import { UsersPage }        from './pages/manage/UsersPage';
 import { ExpensesPage }     from './pages/manage/ExpensesPage';
@@ -33,6 +34,7 @@ import { MasterPropertyModal }   from './components/manage/MasterPropertyModal';
 import { UnitModal }             from './components/manage/UnitModal';
 import { CarparkModal }          from './components/manage/CarparkModal';
 import { CustomerModal }         from './components/manage/CustomerModal';
+import { CompanyModal }          from './components/manage/CompanyModal';
 import { LeaseBookingModal }     from './components/manage/LeaseBookingModal';
 import { LeaseDetailModal }      from './components/manage/LeaseDetailModal';
 import { ExpenseTypeModal }      from './components/manage/ExpenseTypeModal';
@@ -78,10 +80,13 @@ export default function App() {
   const [dataSources,           setDataSources]           = useState<DataSource[]>([]);
   const [isDataSourceModalOpen, setIsDataSourceModalOpen] = useState(false);
   const [selectedDataSource,    setSelectedDataSource]    = useState<DataSource | null>(null);
+  const [companies,             setCompanies]             = useState<Company[]>([]);
+  const [isCompanyModalOpen,    setIsCompanyModalOpen]    = useState(false);
+  const [selectedCompany,       setSelectedCompany]       = useState<Company | null>(null);
 
   // ─── Load data from API ────────────────────────────────────────
   const refreshData = useCallback(async () => {
-    const [propsRes, unitsRes, carparksRes, customersRes, leasesRes, expTypesRes, dsRes] = await Promise.all([
+    const [propsRes, unitsRes, carparksRes, customersRes, leasesRes, expTypesRes, dsRes, companiesRes] = await Promise.all([
       apiFetch('/api/assets/properties'),
       apiFetch('/api/assets/units'),
       apiFetch('/api/assets/carparks'),
@@ -89,6 +94,7 @@ export default function App() {
       apiFetch('/api/leases'),
       apiFetch('/api/expenses/types'),
       apiFetch('/api/datasources'),
+      apiFetch('/api/companies'),
     ]);
     if (propsRes.ok) setMasterProperties(await propsRes.json());
     if (unitsRes.ok) setUnits(await unitsRes.json());
@@ -97,6 +103,7 @@ export default function App() {
     if (leasesRes.ok) setLeases(await leasesRes.json());
     if (expTypesRes.ok) setExpenseTypes(await expTypesRes.json());
     if (dsRes.ok) setDataSources(await dsRes.json());
+    if (companiesRes.ok) setCompanies(await companiesRes.json());
   }, [apiFetch]);
 
   useEffect(() => { refreshData(); }, [refreshData]);
@@ -153,9 +160,11 @@ export default function App() {
   const handleAddCarpark = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
+    const unitNo = (fd.get('unitNo') as string).trim();
     const payload = {
       carparkNumber:        fd.get('carparkNumber') as string,
       suggestedRentalPrice: Number(fd.get('suggestedRentalPrice')),
+      unitNo:               unitNo || undefined,
       status:               fd.get('status') as AssetStatus,
     };
     const url = selectedCarpark
@@ -281,6 +290,50 @@ export default function App() {
     } else {
       const data = await res.json();
       alert(data.error || 'Failed to delete data source');
+    }
+  };
+
+  // ─── Company Handlers ──────────────────────────────────────────
+
+  const handleSaveCompany = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const fd = new FormData(e.currentTarget);
+    const dataSourceId = fd.get('dataSourceId') as string;
+    const payload = {
+      name:           fd.get('name') as string,
+      managerName:    (fd.get('managerName') as string) || undefined,
+      email:          (fd.get('email') as string) || undefined,
+      phone:          (fd.get('phone') as string) || undefined,
+      tinNumber:      (fd.get('tinNumber') as string) || undefined,
+      address:        (fd.get('address') as string) || undefined,
+      wechatId:       (fd.get('wechatId') as string) || undefined,
+      whatsappNumber: (fd.get('whatsappNumber') as string) || undefined,
+      remark:         (fd.get('remark') as string) || undefined,
+      dataSourceId:   dataSourceId || null,
+    };
+    const url = selectedCompany
+      ? `/api/companies/${selectedCompany.id}`
+      : '/api/companies';
+    const method = selectedCompany ? 'PUT' : 'POST';
+    const res = await apiFetch(url, { method, body: JSON.stringify(payload) });
+    if (res.ok) {
+      setIsCompanyModalOpen(false);
+      setSelectedCompany(null);
+      await refreshData();
+    } else {
+      const data = await res.json();
+      alert(data.error || 'Failed to save company');
+    }
+  };
+
+  const handleDeleteCompany = async (c: Company) => {
+    if (!confirm(`Delete company "${c.name}"?`)) return;
+    const res = await apiFetch(`/api/companies/${c.id}`, { method: 'DELETE' });
+    if (res.ok) {
+      await refreshData();
+    } else {
+      const data = await res.json();
+      alert(data.error || 'Failed to delete company');
     }
   };
 
@@ -436,6 +489,14 @@ export default function App() {
         onDelete={handleDeleteCustomer}
       />
     ),
+    companies: (
+      <CompaniesPage
+        companies={companies}
+        onAdd={() => { setSelectedCompany(null); setIsCompanyModalOpen(true); }}
+        onEdit={c => { setSelectedCompany(c); setIsCompanyModalOpen(true); }}
+        onDelete={handleDeleteCompany}
+      />
+    ),
     dataSources: (
       <DataSourcesPage
         dataSources={dataSources}
@@ -533,6 +594,13 @@ export default function App() {
         onSubmit={handleAddCarpark}
         selectedCarpark={selectedCarpark}
       />
+      <CompanyModal
+        isOpen={isCompanyModalOpen}
+        onClose={() => { setIsCompanyModalOpen(false); setSelectedCompany(null); }}
+        onSubmit={handleSaveCompany}
+        selectedCompany={selectedCompany}
+        dataSources={dataSources}
+      />
       <CustomerModal
         isOpen={isCustomerModalOpen}
         onClose={() => { setIsCustomerModalOpen(false); setSelectedCustomer(null); }}
@@ -544,6 +612,7 @@ export default function App() {
         isOpen={isLeaseModalOpen}
         onClose={() => { setIsLeaseModalOpen(false); setLeaseModalPrefill(null); }}
         onSuccess={() => { refreshData(); }}
+        dataSources={dataSources}
         prefill={leaseModalPrefill}
       />
       <LeaseDetailModal

@@ -34,6 +34,7 @@ export interface Unit {
 export interface Carpark {
   id: string;
   carparkNumber: string;
+  unitNo?: string | null;
   suggestedRentalPrice: number;
   status: AssetStatus;
 }
@@ -62,6 +63,31 @@ export interface Customer {
   remark?: string;
   dataSourceId?: string | null;
   dataSource?: { id: string; name: string } | null;
+}
+
+// ─── Company ─────────────────────────────────────────────────────────────────
+
+export interface Company {
+  id: string;
+  name: string;
+  managerName?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  tinNumber?: string | null;
+  address?: string | null;
+  wechatId?: string | null;
+  whatsappNumber?: string | null;
+  dataSourceId?: string | null;
+  remark?: string | null;
+  dataSource?: { id: string; name: string } | null;
+}
+
+export interface CompanySearchResult {
+  id: string;
+  name: string;
+  managerName?: string | null;
+  phone?: string | null;
+  email?: string | null;
 }
 
 // ─── Timeline / Lease ────────────────────────────────────────────────────────
@@ -140,16 +166,18 @@ export interface Lease {
   totalAmount: number;
   status: LeaseStatusType;
   notes?: string;
-  customer: { id: string; name: string; phoneLocal: string; icPassport: string };
+  customer?: { id: string; name: string; phoneLocal: string; icPassport: string } | null;
+  company?: { id: string; name: string; phone?: string | null } | null;
   unit?: { id: string; unitNumber: string; property: { name: string } } | null;
   carpark?: { id: string; carparkNumber: string } | null;
   deposit?: LeaseDepositInfo | null;
   _count: { invoices: number };
 }
 
-export interface LeaseDetail extends Lease {
+export interface LeaseDetail extends Omit<Lease, 'customer' | 'company'> {
   invoices: LeaseInvoice[];
-  customer: { id: string; name: string; phoneLocal: string; icPassport: string; email?: string; currentAddress?: string };
+  customer?: { id: string; name: string; phoneLocal: string; icPassport: string; email?: string; currentAddress?: string } | null;
+  company?: { id: string; name: string; managerName?: string | null; email?: string | null; phone?: string | null; tinNumber?: string | null; address?: string | null } | null;
 }
 
 // ─── Expense Management ──────────────────────────────────────────────────────

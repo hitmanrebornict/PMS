@@ -37,13 +37,14 @@ function serializeLease(lease: any) {
 
 router.get('/', authenticate, requireViewer, async (_req: AuthRequest, res: Response) => {
   try {
-    const leases = await prisma.leaseAgreement.findMany({
+    const leases: any[] = await (prisma.leaseAgreement.findMany as any)({
       include: {
         customer: { select: { id: true, name: true, phoneLocal: true, icPassport: true } },
-        unit: { select: { id: true, unitNumber: true, property: { select: { name: true } } } },
+        company:  { select: { id: true, name: true, phone: true } },
+        unit:    { select: { id: true, unitNumber: true, property: { select: { name: true } } } },
         carpark: { select: { id: true, carparkNumber: true } },
         deposit: true,
-        _count: { select: { invoices: true } },
+        _count:  { select: { invoices: true } },
       },
       orderBy: { startDate: 'desc' },
     });
@@ -59,7 +60,7 @@ router.get('/', authenticate, requireViewer, async (_req: AuthRequest, res: Resp
 
 router.get('/:id', authenticate, requireViewer, async (req: AuthRequest, res: Response) => {
   try {
-    const lease = await prisma.leaseAgreement.findUnique({
+    const lease: any = await (prisma.leaseAgreement.findUnique as any)({
       where: { id: req.params.id },
       include: {
         customer: {
@@ -68,11 +69,17 @@ router.get('/:id', authenticate, requireViewer, async (req: AuthRequest, res: Re
             email: true, currentAddress: true,
           },
         },
-        unit: { select: { id: true, unitNumber: true, property: { select: { name: true } } } },
+        company: {
+          select: {
+            id: true, name: true, managerName: true, email: true,
+            phone: true, tinNumber: true, address: true,
+          },
+        },
+        unit:    { select: { id: true, unitNumber: true, property: { select: { name: true } } } },
         carpark: { select: { id: true, carparkNumber: true } },
         deposit: true,
         invoices: { orderBy: { periodStart: 'asc' } },
-        _count: { select: { invoices: true } },
+        _count:  { select: { invoices: true } },
       },
     });
 

@@ -9,21 +9,43 @@ const router = Router();
 // ─── POST / (Create Lease) ───────────────────────────────────────────────────
 
 const createLeaseSchema = z.object({
+  renterType: z.enum(['customer', 'company']).default('customer'),
+
+  // Individual renter
   customer: z.object({
-    icPassport: z.string().min(1),
-    name: z.string().min(1),
-    phoneLocal: z.string().min(1),
-    email: z.string().email().optional(),
+    icPassport:     z.string().min(1),
+    name:           z.string().min(1),
+    phoneLocal:     z.string().min(1),
+    email:          z.string().email().optional(),
     currentAddress: z.string().optional(),
-  }),
-  unitId: z.string().uuid().nullable().default(null),
+  }).optional(),
+
+  // Company renter — existing or new
+  companyId: z.string().uuid().optional().nullable(),
+  company: z.object({
+    name:           z.string().min(1),
+    managerName:    z.string().optional(),
+    email:          z.string().email().optional().or(z.literal('')),
+    phone:          z.string().optional(),
+    tinNumber:      z.string().optional(),
+    address:        z.string().optional(),
+    wechatId:       z.string().optional(),
+    whatsappNumber: z.string().optional(),
+    dataSourceId:   z.string().uuid().optional().nullable(),
+    remark:         z.string().optional(),
+  }).optional(),
+
+  // Asset
+  unitId:    z.string().uuid().nullable().default(null),
   carparkId: z.string().uuid().nullable().default(null),
-  startDate: z.string().min(1),
-  endDate: z.string().min(1),
-  billingCycle: z.enum(['DAILY', 'FIXED_TERM', 'MONTHLY']),
-  unitPrice: z.number().positive(),
+
+  // Lease terms
+  startDate:     z.string().min(1),
+  endDate:       z.string().min(1),
+  billingCycle:  z.enum(['DAILY', 'FIXED_TERM', 'MONTHLY']),
+  unitPrice:     z.number().positive(),
   depositAmount: z.number().min(0),
-  notes: z.string().optional(),
+  notes:         z.string().optional(),
 });
 
 router.post('/', authenticate, requireManager, async (req: AuthRequest, res: Response) => {
@@ -40,8 +62,18 @@ router.post('/', authenticate, requireManager, async (req: AuthRequest, res: Res
     return;
   }
 
+  if (data.renterType === 'customer' && !data.customer) {
+    res.status(400).json({ error: 'Customer details are required for individual lease' });
+    return;
+  }
+
+  if (data.renterType === 'company' && !data.companyId && !data.company) {
+    res.status(400).json({ error: 'Company details or existing companyId are required for company lease' });
+    return;
+  }
+
   const startDate = new Date(data.startDate);
-  const endDate = new Date(data.endDate);
+  const endDate   = new Date(data.endDate);
 
   if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
     res.status(400).json({ error: 'Invalid date format' });
@@ -55,15 +87,18 @@ router.post('/', authenticate, requireManager, async (req: AuthRequest, res: Res
 
   try {
     const result = await createLease({
-      customer: data.customer,
-      unitId: data.unitId,
-      carparkId: data.carparkId,
+      renterType:    data.renterType,
+      customer:      data.customer,
+      companyId:     data.companyId ?? null,
+      company:       data.company,
+      unitId:        data.unitId,
+      carparkId:     data.carparkId,
       startDate,
       endDate,
-      billingCycle: data.billingCycle,
-      unitPrice: data.unitPrice,
+      billingCycle:  data.billingCycle,
+      unitPrice:     data.unitPrice,
       depositAmount: data.depositAmount,
-      notes: data.notes,
+      notes:         data.notes,
     });
 
     res.status(201).json(result);

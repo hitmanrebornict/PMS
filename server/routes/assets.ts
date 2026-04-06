@@ -23,6 +23,7 @@ const createUnitSchema = z.object({
 
 const createCarparkSchema = z.object({
   carparkNumber: z.string().min(1).max(50),
+  unitNo: z.string().max(50).optional(),
   suggestedRentalPrice: z.number().min(0),
   status: z.enum(['VACANT', 'OCCUPIED', 'MAINTENANCE']).default('VACANT'),
 });
@@ -221,6 +222,7 @@ router.get('/carparks', authenticate, requireViewer, async (_req: AuthRequest, r
     res.json(carparks.map(c => ({
       id: c.id,
       carparkNumber: c.carparkNumber,
+      unitNo: c.unitNo ?? null,
       suggestedRentalPrice: Number(c.suggestedRentalPrice),
       status: c.status,
     })));
@@ -237,10 +239,11 @@ router.post('/carparks', authenticate, requireManager, async (req: AuthRequest, 
     return;
   }
   try {
-    const carpark = await prisma.carpark.create({ data: parsed.data });
+    const carpark: any = await (prisma.carpark.create as any)({ data: parsed.data });
     res.status(201).json({
       id: carpark.id,
       carparkNumber: carpark.carparkNumber,
+      unitNo: carpark.unitNo ?? null,
       suggestedRentalPrice: Number(carpark.suggestedRentalPrice),
       status: carpark.status,
     });
@@ -261,13 +264,14 @@ router.put('/carparks/:id', authenticate, requireManager, async (req: AuthReques
     return;
   }
   try {
-    const carpark = await prisma.carpark.update({
+    const carpark: any = await (prisma.carpark.update as any)({
       where: { id: req.params.id },
       data: parsed.data,
     });
     res.json({
       id: carpark.id,
       carparkNumber: carpark.carparkNumber,
+      unitNo: carpark.unitNo ?? null,
       suggestedRentalPrice: Number(carpark.suggestedRentalPrice),
       status: carpark.status,
     });

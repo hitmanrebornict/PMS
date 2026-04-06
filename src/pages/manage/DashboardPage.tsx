@@ -182,6 +182,7 @@ export function DashboardPage({ units, carparks, masterProperties }: DashboardPa
                   }`}
                 >
                   <div className="text-xs font-bold opacity-60 uppercase tracking-wider mb-1">{cp.carparkNumber}</div>
+                  {cp.unitNo && <div className="text-xs opacity-70 mb-0.5">{cp.unitNo}</div>}
                   <div className="text-xs font-medium">{cp.status}</div>
                 </div>
               ))}

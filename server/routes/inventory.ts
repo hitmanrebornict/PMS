@@ -50,7 +50,7 @@ router.get('/timeline', authenticate, requireViewer, async (req: AuthRequest, re
     });
 
     // Fetch overlapping leases
-    const leases = await prisma.leaseAgreement.findMany({
+    const leases: any[] = await (prisma.leaseAgreement.findMany as any)({
       where: {
         status: { in: ['ACTIVE', 'UPCOMING'] },
         startDate: { lt: endDate },
@@ -64,12 +64,13 @@ router.get('/timeline', authenticate, requireViewer, async (req: AuthRequest, re
         endDate: true,
         status: true,
         customer: { select: { id: true, name: true } },
+        company: { select: { id: true, name: true } },
       },
-    });
+    } as any);
 
     // Group leases by asset
-    const unitLeases = new Map<string, typeof leases>();
-    const carparkLeases = new Map<string, typeof leases>();
+    const unitLeases = new Map<string, any[]>();
+    const carparkLeases = new Map<string, any[]>();
 
     for (const lease of leases) {
       if (lease.unitId) {
@@ -85,12 +86,12 @@ router.get('/timeline', authenticate, requireViewer, async (req: AuthRequest, re
     }
 
     const formatLeases = (assetLeases: typeof leases | undefined) =>
-      (assetLeases || []).map((l) => ({
+      (assetLeases || []).map((l: any) => ({
         id: l.id,
         startDate: l.startDate.toISOString(),
         endDate: l.endDate.toISOString(),
         status: l.status,
-        customerName: l.customer.name,
+        customerName: l.customer?.name ?? l.company?.name ?? 'Unknown',
       }));
 
     res.json({

@@ -401,15 +401,44 @@ export function LeaseDetailModal({ isOpen, onClose, leaseId, onAction }: LeaseDe
                 </div>
               ) : (
                 <div className="grid grid-cols-2 gap-3 text-sm">
-                  <div>
-                    <p className="text-slate-500">Customer</p>
-                    <p className="font-medium text-slate-900">{lease.customer.name}</p>
-                    <p className="text-xs text-slate-400">{lease.customer.phoneLocal}</p>
-                  </div>
-                  <div>
-                    <p className="text-slate-500">IC/Passport</p>
-                    <p className="font-medium text-slate-900">{lease.customer.icPassport}</p>
-                  </div>
+                  {lease.company ? (
+                    <>
+                      <div>
+                        <p className="text-slate-500">Company</p>
+                        <p className="font-medium text-slate-900">{lease.company.name}</p>
+                        {lease.company.phone && <p className="text-xs text-slate-400">{lease.company.phone}</p>}
+                      </div>
+                      <div>
+                        <p className="text-slate-500">Manager</p>
+                        <p className="font-medium text-slate-900">{lease.company.managerName || '—'}</p>
+                        {lease.company.email && <p className="text-xs text-slate-400">{lease.company.email}</p>}
+                      </div>
+                      {lease.company.tinNumber && (
+                        <div>
+                          <p className="text-slate-500">TIN</p>
+                          <p className="font-medium text-slate-900">{lease.company.tinNumber}</p>
+                        </div>
+                      )}
+                      {lease.company.address && (
+                        <div className={lease.company.tinNumber ? '' : 'col-span-2'}>
+                          <p className="text-slate-500">Address</p>
+                          <p className="font-medium text-slate-900">{lease.company.address}</p>
+                        </div>
+                      )}
+                    </>
+                  ) : lease.customer ? (
+                    <>
+                      <div>
+                        <p className="text-slate-500">Customer</p>
+                        <p className="font-medium text-slate-900">{lease.customer.name}</p>
+                        <p className="text-xs text-slate-400">{lease.customer.phoneLocal}</p>
+                      </div>
+                      <div>
+                        <p className="text-slate-500">IC/Passport</p>
+                        <p className="font-medium text-slate-900">{lease.customer.icPassport}</p>
+                      </div>
+                    </>
+                  ) : null}
                   <div>
                     <p className="text-slate-500">Period</p>
                     <p className="font-medium text-slate-900">{formatDate(lease.startDate)} – {formatDate(lease.endDate)}</p>
