@@ -75,7 +75,7 @@ export function OwnerAgreementModal({
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">Start Date *</label>
             <input
-              name="startDate" type="date"
+              name="startDate" type="date" lang="en-GB"
               defaultValue={selectedAgreement?.startDate?.slice(0, 10) ?? ''}
               required className={inp}
             />
@@ -83,7 +83,7 @@ export function OwnerAgreementModal({
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">End Date *</label>
             <input
-              name="endDate" type="date"
+              name="endDate" type="date" lang="en-GB"
               defaultValue={selectedAgreement?.endDate?.slice(0, 10) ?? ''}
               required className={inp}
             />

@@ -4,6 +4,7 @@ export enum UnitType {
   STUDIO = 'STUDIO',
   ONE_BEDROOM = 'ONE_BEDROOM',
   TWO_BEDROOM = 'TWO_BEDROOM',
+  THREE_BEDROOM = 'THREE_BEDROOM',
   BUNGALOW = 'BUNGALOW',
   OTHER = 'OTHER',
 }
@@ -331,11 +332,31 @@ export interface ProfitExpenseRow {
 export interface ProfitUnit {
   id: string;
   unitNumber: string;
+  unitType: UnitType;
   totalIncome: number;
   totalExpenses: number;
   netProfit: number;
   invoices: ProfitInvoiceRow[];
   expenses: ProfitExpenseRow[];
+}
+
+export interface MonthlyProfitRow {
+  month: string;
+  monthIndex: number;
+  income: number;
+  expenses: number;
+  netProfit: number;
+}
+
+export interface MonthlyProfitSummary {
+  year: number;
+  months: MonthlyProfitRow[];
+}
+
+export interface RoomTypeMonthlyData {
+  year: number;
+  months: Array<Record<string, number | string>>;  // { month: string, monthIndex: number, [roomType]: number }
+  roomTypes: string[];
 }
 
 export interface ProfitProperty {
@@ -363,4 +384,48 @@ export interface ProfitSummary {
   properties: ProfitProperty[];
   carparkIncome: number;
   carparkRows: ProfitCarparkRow[];
+}
+
+// ─── Investment Analysis ──────────────────────────────────────────────────────
+
+export interface InvestmentAnalysisSummaryItem {
+  unitId: string;
+  unitNumber: string;
+  propertyName: string;
+  unitType: string;
+  investmentCount: number;
+  totalCapital: number;
+  totalProfit: number;
+  breakEvenAchieved: boolean;
+  earliestStart: string;
+}
+
+export interface InvestmentProfitSeriesEntry {
+  label: string;
+  year: number;
+  month: number;
+  income: number;
+  expenses: number;
+  netProfit: number;
+  cumulativeProfit: number;
+}
+
+export interface InvestmentAnalysisInvestor {
+  id: string;
+  investorName: string;
+  investorIc: string;
+  capitalAmount: number;
+  startDate: string;
+  endDate: string;
+  status: InvestmentStatus;
+  notes: string;
+}
+
+export interface InvestmentAnalysisDetail {
+  unit: { id: string; unitNumber: string; type: string; propertyName: string };
+  investments: InvestmentAnalysisInvestor[];
+  totalCapital: number;
+  totalProfit: number;
+  series: InvestmentProfitSeriesEntry[];
+  breakEvenMonth: InvestmentProfitSeriesEntry | null;
 }

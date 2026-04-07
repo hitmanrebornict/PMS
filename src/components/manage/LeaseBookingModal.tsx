@@ -604,11 +604,11 @@ export function LeaseBookingModal({ isOpen, onClose, onSuccess, dataSources = []
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">Start Date</label>
-            <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} required className={inputClass} />
+            <input type="date" lang="en-GB" value={startDate} onChange={(e) => setStartDate(e.target.value)} required className={inputClass} />
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">End Date</label>
-            <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} required className={inputClass} />
+            <input type="date" lang="en-GB" value={endDate} onChange={(e) => setEndDate(e.target.value)} required className={inputClass} />
           </div>
         </div>
 

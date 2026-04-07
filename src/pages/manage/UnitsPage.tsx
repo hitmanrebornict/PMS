@@ -15,6 +15,7 @@ const unitTypeLabels: Record<UnitType, string> = {
   [UnitType.STUDIO]: 'Studio',
   [UnitType.ONE_BEDROOM]: '1 Bedroom',
   [UnitType.TWO_BEDROOM]: '2 Bedroom',
+  [UnitType.THREE_BEDROOM]: '3 Bedroom',
   [UnitType.BUNGALOW]: 'Bungalow',
   [UnitType.OTHER]: 'Other',
 };

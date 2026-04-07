@@ -180,6 +180,7 @@ export function LeasesPage({ leases, onViewDetail }: LeasesPageProps) {
           <div className="flex items-center gap-2">
             <input
               type="date"
+              lang="en-GB"
               value={dateFrom}
               onChange={e => setDateFrom(e.target.value)}
               className="text-sm border border-slate-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -187,6 +188,7 @@ export function LeasesPage({ leases, onViewDetail }: LeasesPageProps) {
             <span className="text-slate-400 text-sm">to</span>
             <input
               type="date"
+              lang="en-GB"
               value={dateTo}
               onChange={e => setDateTo(e.target.value)}
               className="text-sm border border-slate-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500"
