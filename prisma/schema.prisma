@@ -72,6 +72,17 @@ enum InvestmentStatus {
   WITHDRAWN
 }
 
+enum ExpenseStatus {
+  PENDING
+  PAID
+}
+
+enum OwnerAgreementStatus {
+  ACTIVE
+  TERMINATED
+  COMPLETED
+}
+
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 
 model User {
@@ -223,10 +234,11 @@ model Unit {
   createdAt            DateTime    @default(now())
   updatedAt            DateTime    @updatedAt
 
-  property    MasterProperty  @relation(fields: [propertyId], references: [id], onDelete: Cascade)
-  leases      LeaseAgreement[]
-  expenses    Expense[]
-  investments Investment[]
+  property         MasterProperty   @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  leases           LeaseAgreement[]
+  expenses         Expense[]
+  investments      Investment[]
+  ownerAgreements  OwnerAgreement[]
 
   @@unique([propertyId, unitNumber])
   @@map("units")
@@ -328,20 +340,67 @@ model ExpenseType {
 }
 
 model Expense {
-  id            String      @id @default(uuid())
-  unitId        String
-  expenseTypeId String
-  amount        Decimal     @db.Decimal(10, 2)
-  description   String?
-  expenseDate   DateTime
-  isActive      Boolean     @default(true)
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
+  id                 String        @id @default(uuid())
+  unitId             String
+  expenseTypeId      String
+  ownerAgreementId   String?
+  amount             Decimal       @db.Decimal(10, 2)
+  description        String?
+  expenseDate        DateTime
+  dueDate            DateTime?
+  status             ExpenseStatus @default(PENDING)
+  paidAt             DateTime?
+  isActive           Boolean       @default(true)
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
 
-  unit        Unit        @relation(fields: [unitId], references: [id], onDelete: Cascade)
-  expenseType ExpenseType @relation(fields: [expenseTypeId], references: [id], onDelete: Restrict)
+  unit            Unit            @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  expenseType     ExpenseType     @relation(fields: [expenseTypeId], references: [id], onDelete: Restrict)
+  ownerAgreement  OwnerAgreement? @relation(fields: [ownerAgreementId], references: [id], onDelete: SetNull)
 
   @@map("expenses")
+}
+
+// ─── Owner Agreement Management ──────────────────────────────────────────────
+
+model Owner {
+  id          String   @id @default(uuid())
+  name        String
+  phone       String?
+  email       String?
+  icPassport  String?
+  bankAccount String?
+  bankName    String?
+  address     String?
+  notes       String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  agreements OwnerAgreement[]
+
+  @@map("owners")
+}
+
+model OwnerAgreement {
+  id         String               @id @default(uuid())
+  ownerId    String
+  unitId     String
+  amount     Decimal              @db.Decimal(10, 2)
+  startDate  DateTime
+  endDate    DateTime
+  paymentDay Int                  @default(7)
+  notes      String?
+  status     OwnerAgreementStatus @default(ACTIVE)
+  isActive   Boolean              @default(true)
+  createdAt  DateTime             @default(now())
+  updatedAt  DateTime             @updatedAt
+
+  owner    Owner    @relation(fields: [ownerId], references: [id], onDelete: Restrict)
+  unit     Unit     @relation(fields: [unitId], references: [id], onDelete: Restrict)
+  expenses Expense[]
+
+  @@map("owner_agreements")
 }
 
 // ─── Investment Management ────────────────────────────────────────────────────

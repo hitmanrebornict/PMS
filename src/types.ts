@@ -210,6 +210,48 @@ export interface LeaseDetail extends Omit<Lease, 'customer' | 'company'> {
   company?: { id: string; name: string; managerName?: string | null; email?: string | null; phone?: string | null; tinNumber?: string | null; address?: string | null } | null;
 }
 
+// ─── Owner Agreement ─────────────────────────────────────────────────────────
+
+export interface Owner {
+  id: string;
+  name: string;
+  phone?: string | null;
+  email?: string | null;
+  icPassport?: string | null;
+  bankAccount?: string | null;
+  bankName?: string | null;
+  address?: string | null;
+  notes?: string | null;
+  createdAt: string;
+}
+
+export type OwnerAgreementStatus = 'ACTIVE' | 'TERMINATED' | 'COMPLETED';
+
+export interface OwnerAgreementExpense {
+  id: string;
+  dueDate: string | null;
+  status: 'PENDING' | 'PAID';
+  paidAt: string | null;
+  amount: number;
+  description: string | null;
+}
+
+export interface OwnerAgreement {
+  id: string;
+  ownerId: string;
+  unitId: string;
+  amount: number;
+  startDate: string;
+  endDate: string;
+  paymentDay: number;
+  notes?: string | null;
+  status: OwnerAgreementStatus;
+  createdAt: string;
+  owner?: { id: string; name: string; phone?: string | null };
+  unit?: { id: string; unitNumber: string; property?: { id: string; name: string } };
+  expenses?: OwnerAgreementExpense[];
+}
+
 // ─── Expense Management ──────────────────────────────────────────────────────
 
 export interface ExpenseType {
