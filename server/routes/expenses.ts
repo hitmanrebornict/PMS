@@ -311,4 +311,19 @@ router.delete('/:id', authenticate, requireManager, async (req: AuthRequest, res
   }
 });
 
+// PATCH /api/expenses/:id/pay — mark a PENDING expense as PAID
+router.patch('/:id/pay', authenticate, requireManager, async (req: AuthRequest, res: Response) => {
+  try {
+    const expense = await (prisma.expense.update as any)({
+      where: { id: req.params.id },
+      data:  { status: 'PAID', paidAt: new Date() },
+    });
+    res.json({ id: expense.id, status: expense.status, paidAt: expense.paidAt?.toISOString() ?? null });
+  } catch (err: any) {
+    if (err.code === 'P2025') { res.status(404).json({ error: 'Expense not found' }); return; }
+    console.error('Pay expense error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 export default router;

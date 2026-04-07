@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'motion/react';
 
 // Types
 import {
-  Customer, Lease, Company, Investment,
+  Customer, Lease, Company, Investment, Owner, OwnerAgreement,
   MasterProperty, Unit, Carpark, UnitType, AssetStatus,
   ExpenseType, Expense, DataSource,
 } from './types';
@@ -28,7 +28,8 @@ import { UsersPage }        from './pages/manage/UsersPage';
 import { ExpensesPage }     from './pages/manage/ExpensesPage';
 import { ProfitPage }       from './pages/manage/ProfitPage';
 import { DataSourcesPage }  from './pages/manage/DataSourcesPage';
-import { InvestmentsPage } from './pages/manage/InvestmentsPage';
+import { InvestmentsPage }       from './pages/manage/InvestmentsPage';
+import { OwnerAgreementsPage }  from './pages/manage/OwnerAgreementsPage';
 
 // Modals
 import { MasterPropertyModal }   from './components/manage/MasterPropertyModal';
@@ -41,7 +42,9 @@ import { LeaseDetailModal }      from './components/manage/LeaseDetailModal';
 import { ExpenseTypeModal }      from './components/manage/ExpenseTypeModal';
 import { ExpenseModal }          from './components/manage/ExpenseModal';
 import { DataSourceModal }       from './components/manage/DataSourceModal';
-import { InvestmentModal }      from './components/manage/InvestmentModal';
+import { InvestmentModal }        from './components/manage/InvestmentModal';
+import { OwnerModal }             from './components/manage/OwnerModal';
+import { OwnerAgreementModal }    from './components/manage/OwnerAgreementModal';
 
 export default function App() {
   const { apiFetch } = useApi();
@@ -88,10 +91,16 @@ export default function App() {
   const [isInvestmentModalOpen, setIsInvestmentModalOpen] = useState(false);
   const [selectedInvestment,    setSelectedInvestment]    = useState<Investment | null>(null);
   const [investmentRefreshSignal, setInvestmentRefreshSignal] = useState(0);
+  const [isOwnerModalOpen,       setIsOwnerModalOpen]       = useState(false);
+  const [selectedOwner,          setSelectedOwner]          = useState<Owner | null>(null);
+  const [owners,                 setOwners]                 = useState<Owner[]>([]);
+  const [isOwnerAgreementModalOpen, setIsOwnerAgreementModalOpen] = useState(false);
+  const [selectedOwnerAgreement,    setSelectedOwnerAgreement]    = useState<OwnerAgreement | null>(null);
+  const [ownerAgreementRefreshSignal, setOwnerAgreementRefreshSignal] = useState(0);
 
   // ─── Load data from API ────────────────────────────────────────
   const refreshData = useCallback(async () => {
-    const [propsRes, unitsRes, carparksRes, customersRes, leasesRes, expTypesRes, dsRes, companiesRes] = await Promise.all([
+    const [propsRes, unitsRes, carparksRes, customersRes, leasesRes, expTypesRes, dsRes, companiesRes, ownersRes] = await Promise.all([
       apiFetch('/api/assets/properties'),
       apiFetch('/api/assets/units'),
       apiFetch('/api/assets/carparks'),
@@ -100,6 +109,7 @@ export default function App() {
       apiFetch('/api/expenses/types'),
       apiFetch('/api/datasources'),
       apiFetch('/api/companies'),
+      apiFetch('/api/owners'),
     ]);
     if (propsRes.ok) setMasterProperties(await propsRes.json());
     if (unitsRes.ok) setUnits(await unitsRes.json());
@@ -109,6 +119,7 @@ export default function App() {
     if (expTypesRes.ok) setExpenseTypes(await expTypesRes.json());
     if (dsRes.ok) setDataSources(await dsRes.json());
     if (companiesRes.ok) setCompanies(await companiesRes.json());
+    if (ownersRes.ok) setOwners(await ownersRes.json());
   }, [apiFetch]);
 
   useEffect(() => { refreshData(); }, [refreshData]);
@@ -380,6 +391,83 @@ export default function App() {
     }
   };
 
+  // ─── Owner / OwnerAgreement Handlers ──────────────────────────
+
+  const handleSaveOwner = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const fd = new FormData(e.currentTarget);
+    const payload = {
+      name:        fd.get('name') as string,
+      phone:       (fd.get('phone') as string) || undefined,
+      email:       (fd.get('email') as string) || undefined,
+      icPassport:  (fd.get('icPassport') as string) || undefined,
+      bankAccount: (fd.get('bankAccount') as string) || undefined,
+      bankName:    (fd.get('bankName') as string) || undefined,
+      address:     (fd.get('address') as string) || undefined,
+      notes:       (fd.get('notes') as string) || undefined,
+    };
+    const url    = selectedOwner ? `/api/owners/${selectedOwner.id}` : '/api/owners';
+    const method = selectedOwner ? 'PUT' : 'POST';
+    const res = await apiFetch(url, { method, body: JSON.stringify(payload) });
+    if (res.ok) {
+      setIsOwnerModalOpen(false);
+      setSelectedOwner(null);
+      await refreshData();
+      setOwnerAgreementRefreshSignal(s => s + 1);
+    } else {
+      const data = await res.json();
+      alert(data.error || 'Failed to save owner');
+    }
+  };
+
+  const handleDeleteOwner = async (o: Owner) => {
+    if (!confirm(`Delete owner "${o.name}"?`)) return;
+    const res = await apiFetch(`/api/owners/${o.id}`, { method: 'DELETE' });
+    if (res.ok) {
+      await refreshData();
+      setOwnerAgreementRefreshSignal(s => s + 1);
+    } else {
+      const data = await res.json();
+      alert(data.error || 'Failed to delete owner');
+    }
+  };
+
+  const handleSaveOwnerAgreement = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const fd = new FormData(e.currentTarget);
+    const payload = {
+      ownerId:    fd.get('ownerId') as string,
+      unitId:     fd.get('unitId') as string,
+      amount:     parseFloat(fd.get('amount') as string),
+      startDate:  fd.get('startDate') as string,
+      endDate:    fd.get('endDate') as string,
+      paymentDay: parseInt(fd.get('paymentDay') as string, 10),
+      notes:      (fd.get('notes') as string) || undefined,
+    };
+    const url    = selectedOwnerAgreement ? `/api/owner-agreements/${selectedOwnerAgreement.id}` : '/api/owner-agreements';
+    const method = selectedOwnerAgreement ? 'PUT' : 'POST';
+    const res = await apiFetch(url, { method, body: JSON.stringify(payload) });
+    if (res.ok) {
+      setIsOwnerAgreementModalOpen(false);
+      setSelectedOwnerAgreement(null);
+      setOwnerAgreementRefreshSignal(s => s + 1);
+    } else {
+      const data = await res.json();
+      alert(data.error || 'Failed to save agreement');
+    }
+  };
+
+  const handleDeleteOwnerAgreement = async (ag: OwnerAgreement) => {
+    if (!confirm('Delete this agreement? All pending expenses will be voided.')) return;
+    const res = await apiFetch(`/api/owner-agreements/${ag.id}`, { method: 'DELETE' });
+    if (res.ok) {
+      setOwnerAgreementRefreshSignal(s => s + 1);
+    } else {
+      const data = await res.json();
+      alert(data.error || 'Failed to delete agreement');
+    }
+  };
+
   // ─── Expense Type Handlers ─────────────────────────────────────
 
   const handleSaveExpenseType = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -550,6 +638,18 @@ export default function App() {
     ),
     users: <UsersPage />,
     profit: <ProfitPage />,
+    ownerAgreements: (
+      <OwnerAgreementsPage
+        units={units}
+        onAddOwner={() => { setSelectedOwner(null); setIsOwnerModalOpen(true); }}
+        onEditOwner={o => { setSelectedOwner(o); setIsOwnerModalOpen(true); }}
+        onDeleteOwner={handleDeleteOwner}
+        onAddAgreement={() => { setSelectedOwnerAgreement(null); setIsOwnerAgreementModalOpen(true); }}
+        onEditAgreement={ag => { setSelectedOwnerAgreement(ag); setIsOwnerAgreementModalOpen(true); }}
+        onDeleteAgreement={handleDeleteOwnerAgreement}
+        refreshSignal={ownerAgreementRefreshSignal}
+      />
+    ),
     investments: (
       <InvestmentsPage
         units={units}
@@ -703,6 +803,20 @@ export default function App() {
         selectedInvestment={selectedInvestment}
         units={units}
         customers={customers}
+      />
+      <OwnerModal
+        isOpen={isOwnerModalOpen}
+        onClose={() => { setIsOwnerModalOpen(false); setSelectedOwner(null); }}
+        onSubmit={handleSaveOwner}
+        selectedOwner={selectedOwner}
+      />
+      <OwnerAgreementModal
+        isOpen={isOwnerAgreementModalOpen}
+        onClose={() => { setIsOwnerAgreementModalOpen(false); setSelectedOwnerAgreement(null); }}
+        onSubmit={handleSaveOwnerAgreement}
+        selectedAgreement={selectedOwnerAgreement}
+        owners={owners}
+        units={units}
       />
     </div>
   );
