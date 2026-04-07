@@ -143,6 +143,7 @@ router.get('/customers/search', authenticate, requireViewer, async (req: AuthReq
       select: {
         id: true,
         name: true,
+        gender: true,
         phoneLocal: true,
         icPassport: true,
         email: true,

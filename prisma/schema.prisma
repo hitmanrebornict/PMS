@@ -58,6 +58,16 @@ enum InvoiceStatus {
   CANCELLED
 }
 
+enum Gender {
+  MALE
+  FEMALE
+}
+
+enum PaymentMethod {
+  CASH
+  BANK_TRANSFER
+}
+
 enum DepositStatus {
   PENDING
   PARTIALLY_HELD
@@ -188,6 +198,7 @@ model Customer {
   id             String      @id @default(uuid())
   customerNo     Int         @unique @default(autoincrement())
   name           String
+  gender         Gender?
   phoneLocal     String
   phoneOther     String?
   icPassport     String      @unique
@@ -308,17 +319,19 @@ model LeaseDeposit {
 }
 
 model Invoice {
-  id          String        @id @default(uuid())
-  leaseId     String
-  periodStart DateTime
-  periodEnd   DateTime
-  amount      Decimal       @db.Decimal(10, 2)
-  paidAmount  Decimal       @db.Decimal(10, 2) @default(0)
-  status      InvoiceStatus @default(PENDING)
-  dueDate     DateTime
-  paidAt      DateTime?
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+  id            String         @id @default(uuid())
+  leaseId       String
+  periodStart   DateTime
+  periodEnd     DateTime
+  amount        Decimal        @db.Decimal(10, 2)
+  paidAmount    Decimal        @db.Decimal(10, 2) @default(0)
+  status        InvoiceStatus  @default(PENDING)
+  dueDate       DateTime
+  paidAt        DateTime?
+  paymentMethod PaymentMethod?
+  referenceNo   String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
 
   lease LeaseAgreement @relation(fields: [leaseId], references: [id], onDelete: Cascade)
 

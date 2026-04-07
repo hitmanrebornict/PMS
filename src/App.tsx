@@ -203,8 +203,10 @@ export default function App() {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
     const dataSourceId = fd.get('dataSourceId') as string;
+    const genderRaw = fd.get('gender') as string;
     const payload = {
       name:           fd.get('name') as string,
+      gender:         genderRaw || null,
       phoneLocal:     (fd.get('phoneLocal') as string) || undefined,
       phoneOther:     (fd.get('phoneOther') as string) || undefined,
       icPassport:     fd.get('icPassport') as string,

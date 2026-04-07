@@ -383,13 +383,13 @@ export function ProfitPage({ properties, units, carparks }: ProfitPageProps) {
       ) : data ? (
         <>
           {/* Summary cards */}
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="bg-white border border-slate-200 rounded-xl p-5">
               <div className="flex items-center gap-2 mb-1">
                 <TrendingUp size={16} className="text-emerald-500" />
                 <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Total Sales</p>
               </div>
-              <p className="text-2xl font-bold text-emerald-600">RM {fmt(data.summary.totalIncome)}</p>
+              <p className="text-lg sm:text-2xl font-bold text-emerald-600 break-all">RM {fmt(data.summary.totalIncome)}</p>
               <p className="text-xs text-slate-400 mt-1">{filterLabel || 'Paid invoices only'}</p>
             </div>
             <div className="bg-white border border-slate-200 rounded-xl p-5">
@@ -397,7 +397,7 @@ export function ProfitPage({ properties, units, carparks }: ProfitPageProps) {
                 <TrendingDown size={16} className="text-red-500" />
                 <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Total Expenses</p>
               </div>
-              <p className="text-2xl font-bold text-red-500">RM {fmt(data.summary.totalExpenses)}</p>
+              <p className="text-lg sm:text-2xl font-bold text-red-500 break-all">RM {fmt(data.summary.totalExpenses)}</p>
               <p className="text-xs text-slate-400 mt-1">All recorded expenses</p>
             </div>
             <div className={`border rounded-xl p-5 ${profitPositive ? 'bg-emerald-50 border-emerald-200' : 'bg-red-50 border-red-200'}`}>
@@ -405,7 +405,7 @@ export function ProfitPage({ properties, units, carparks }: ProfitPageProps) {
                 <DollarSign size={16} className={profitPositive ? 'text-emerald-600' : 'text-red-600'} />
                 <p className={`text-xs font-semibold uppercase tracking-wide ${profitPositive ? 'text-emerald-700' : 'text-red-700'}`}>Net Profit</p>
               </div>
-              <p className={`text-2xl font-bold ${profitPositive ? 'text-emerald-700' : 'text-red-700'}`}>
+              <p className={`text-lg sm:text-2xl font-bold break-all ${profitPositive ? 'text-emerald-700' : 'text-red-700'}`}>
                 {profitPositive ? '' : '−'}RM {fmt(Math.abs(profit))}
               </p>
               <p className={`text-xs mt-1 ${profitPositive ? 'text-emerald-600' : 'text-red-500'}`}>

@@ -10,6 +10,7 @@ const router = Router();
 
 const customerBaseSchema = z.object({
   name: z.string().min(1).max(200),
+  gender: z.enum(['MALE', 'FEMALE']).optional().nullable(),
   phoneLocal: z.string().max(30).optional(),
   phoneOther: z.string().max(30).optional(),
   icPassport: z.string().min(1).max(50),
@@ -56,6 +57,7 @@ router.get('/', authenticate, requireViewer, async (_req: AuthRequest, res: Resp
       id: c.id,
       customerNo: c.customerNo,
       name: c.name,
+      gender: c.gender,
       phoneLocal: c.phoneLocal,
       phoneOther: c.phoneOther,
       icPassport: c.icPassport,
@@ -87,6 +89,7 @@ router.post('/', authenticate, requireManager, async (req: AuthRequest, res: Res
       id: customer.id,
       customerNo: customer.customerNo,
       name: customer.name,
+      gender: customer.gender,
       phoneLocal: customer.phoneLocal,
       icPassport: customer.icPassport,
       email: customer.email,
@@ -122,6 +125,7 @@ router.put('/:id', authenticate, requireManager, async (req: AuthRequest, res: R
       id: customer.id,
       customerNo: customer.customerNo,
       name: customer.name,
+      gender: customer.gender,
       phoneLocal: customer.phoneLocal,
       phoneOther: customer.phoneOther,
       icPassport: customer.icPassport,

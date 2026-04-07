@@ -42,6 +42,11 @@ export interface Carpark {
 
 // ─── Customer ────────────────────────────────────────────────────────────────
 
+export enum Gender {
+  MALE = 'MALE',
+  FEMALE = 'FEMALE',
+}
+
 export interface DataSource {
   id: string;
   name: string;
@@ -54,6 +59,7 @@ export interface Customer {
   id: string;
   customerNo?: number;
   name: string;
+  gender?: Gender | null;
   phoneLocal: string;
   phoneOther?: string;
   icPassport: string;
@@ -175,6 +181,8 @@ export interface LeaseDepositInfo {
   refundedAt?: string | null;
 }
 
+export type PaymentMethod = 'CASH' | 'BANK_TRANSFER';
+
 export interface LeaseInvoice {
   id: string;
   periodStart: string;
@@ -184,6 +192,8 @@ export interface LeaseInvoice {
   status: InvoiceStatusType;
   dueDate: string;
   paidAt?: string | null;
+  paymentMethod?: PaymentMethod | null;
+  referenceNo?: string | null;
 }
 
 export interface Lease {
@@ -305,6 +315,7 @@ export interface ExpenseSummaryProperty {
 export interface CustomerSearchResult {
   id: string;
   name: string;
+  gender?: Gender | null;
   phoneLocal: string;
   icPassport: string;
   email?: string;

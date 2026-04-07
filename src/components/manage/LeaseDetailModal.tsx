@@ -48,6 +48,117 @@ function getAssetLabel(lease: LeaseDetail): string {
   return 'Unknown';
 }
 
+// ─── Pay Invoice Prompt ───────────────────────────────────────────────────────
+
+interface PayInvoicePromptProps {
+  remaining: number;
+  onConfirm: (amount: number, paymentMethod: string, referenceNo?: string) => void;
+  onCancel: () => void;
+}
+
+function PayInvoicePrompt({ remaining, onConfirm, onCancel }: PayInvoicePromptProps) {
+  const [value, setValue] = useState(String(remaining));
+  const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'BANK_TRANSFER'>('CASH');
+  const [referenceNo, setReferenceNo] = useState('');
+
+  const parsedAmount = parseFloat(value);
+  const valid =
+    !isNaN(parsedAmount) && parsedAmount > 0 &&
+    (paymentMethod !== 'BANK_TRANSFER' || referenceNo.trim().length > 0);
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/40" onClick={onCancel} />
+      <div className="relative bg-white rounded-xl shadow-xl p-5 w-full max-w-sm space-y-4">
+        <h3 className="font-semibold text-slate-900">Record Payment</h3>
+
+        {/* Amount */}
+        <div>
+          <label className="block text-sm text-slate-600 mb-1">Amount received (RM)</label>
+          <p className="text-xs text-slate-400 mb-2">
+            Outstanding: RM {remaining.toLocaleString('en-MY', { minimumFractionDigits: 2 })}
+          </p>
+          <div className="flex items-center border border-slate-300 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-indigo-500">
+            <span className="px-3 py-2 bg-slate-50 text-slate-500 text-sm border-r border-slate-300">RM</span>
+            <input
+              type="number" min="0.01" step="0.01"
+              value={value}
+              onChange={e => setValue(e.target.value)}
+              className="flex-1 px-3 py-2 text-sm focus:outline-none"
+              autoFocus
+            />
+          </div>
+        </div>
+
+        {/* Payment Method */}
+        <div>
+          <label className="block text-sm text-slate-600 mb-2">Payment method</label>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => setPaymentMethod('CASH')}
+              className={`py-2 rounded-lg border text-sm font-medium transition-colors ${
+                paymentMethod === 'CASH'
+                  ? 'bg-indigo-600 text-white border-indigo-600'
+                  : 'border-slate-300 text-slate-600 hover:bg-slate-50'
+              }`}
+            >
+              Cash
+            </button>
+            <button
+              type="button"
+              onClick={() => setPaymentMethod('BANK_TRANSFER')}
+              className={`py-2 rounded-lg border text-sm font-medium transition-colors ${
+                paymentMethod === 'BANK_TRANSFER'
+                  ? 'bg-indigo-600 text-white border-indigo-600'
+                  : 'border-slate-300 text-slate-600 hover:bg-slate-50'
+              }`}
+            >
+              Bank Transfer
+            </button>
+          </div>
+        </div>
+
+        {/* Reference No — only for Bank Transfer */}
+        {paymentMethod === 'BANK_TRANSFER' && (
+          <div>
+            <label className="block text-sm text-slate-600 mb-1">
+              Reference No. <span className="text-rose-500">*</span>
+            </label>
+            <input
+              type="text"
+              value={referenceNo}
+              onChange={e => setReferenceNo(e.target.value)}
+              placeholder="e.g. TXN123456789"
+              className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+          </div>
+        )}
+
+        <div className="flex gap-2 justify-end">
+          <button
+            onClick={onCancel}
+            className="px-4 py-2 text-sm text-slate-600 border border-slate-300 rounded-lg hover:bg-slate-50"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={() => valid && onConfirm(
+              parsedAmount,
+              paymentMethod,
+              paymentMethod === 'BANK_TRANSFER' ? referenceNo : undefined,
+            )}
+            disabled={!valid}
+            className="px-4 py-2 text-sm font-medium bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50"
+          >
+            Confirm
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Amount Prompt Modal ──────────────────────────────────────────────────────
 
 interface AmountPromptProps {
@@ -129,9 +240,11 @@ export function LeaseDetailModal({ isOpen, onClose, leaseId, onAction }: LeaseDe
   const [editingDepositAmount, setEditingDepositAmount] = useState(false);
   const [depositAmountValue, setDepositAmountValue] = useState('');
 
-  // ── Amount prompt state ───────────────────────────────────────────────────
+  // ── Pay invoice prompt state ──────────────────────────────────────────────
+  const [payInvoicePrompt, setPayInvoicePrompt] = useState<{ invoiceId: string; remaining: number } | null>(null);
+
+  // ── Amount prompt state (deposit actions only) ────────────────────────────
   type PromptAction =
-    | { kind: 'invoice-pay'; invoiceId: string; remaining: number }
     | { kind: 'deposit-receive'; depositId: string; remaining: number }
     | { kind: 'deposit-refund'; depositId: string; remaining: number }
     | { kind: 'deposit-forfeit'; depositId: string; depositAmount: number };
@@ -232,12 +345,16 @@ export function LeaseDetailModal({ isOpen, onClose, leaseId, onAction }: LeaseDe
 
   // ── Invoice actions ───────────────────────────────────────────────────────
 
-  const handlePayInvoice = async (invoiceId: string, amount: number) => {
+  const handlePayInvoice = async (invoiceId: string, amount: number, paymentMethod?: string, referenceNo?: string) => {
     setActionLoading(true);
     try {
       const res = await apiFetch(`/api/invoices/${invoiceId}/pay`, {
         method: 'PATCH',
-        body: JSON.stringify({ amount }),
+        body: JSON.stringify({
+          amount,
+          ...(paymentMethod ? { paymentMethod } : {}),
+          ...(referenceNo   ? { referenceNo   } : {}),
+        }),
       });
       if (res.ok) { await fetchLease(); onAction(); }
       else { const d = await res.json(); alert(d.error || 'Failed to record payment'); }
@@ -313,7 +430,7 @@ export function LeaseDetailModal({ isOpen, onClose, leaseId, onAction }: LeaseDe
   const handleSaveDepositAmount = async () => {
     if (!lease?.deposit) return;
     const newAmount = parseFloat(depositAmountValue);
-    if (isNaN(newAmount) || newAmount <= 0) return;
+    if (isNaN(newAmount) || newAmount < 0) return;
     setActionLoading(true);
     try {
       const res = await apiFetch(`/api/deposits/${lease.deposit.id}`, {
@@ -330,9 +447,7 @@ export function LeaseDetailModal({ isOpen, onClose, leaseId, onAction }: LeaseDe
   const handlePromptConfirm = async (amount: number) => {
     if (!prompt) return;
     setPrompt(null);
-    if (prompt.kind === 'invoice-pay') {
-      await handlePayInvoice(prompt.invoiceId, amount);
-    } else if (prompt.kind === 'deposit-receive') {
+    if (prompt.kind === 'deposit-receive') {
       await handleDepositAction(prompt.depositId, 'receive', amount);
     } else if (prompt.kind === 'deposit-refund') {
       await handleDepositAction(prompt.depositId, 'refund', amount);
@@ -522,7 +637,7 @@ export function LeaseDetailModal({ isOpen, onClose, leaseId, onAction }: LeaseDe
                           </div>
                           <button
                             onClick={handleSaveDepositAmount}
-                            disabled={actionLoading || isNaN(parseFloat(depositAmountValue)) || parseFloat(depositAmountValue) <= 0}
+                            disabled={actionLoading || isNaN(parseFloat(depositAmountValue)) || parseFloat(depositAmountValue) < 0}
                             className="p-1 text-emerald-600 hover:bg-emerald-50 rounded disabled:opacity-50"
                             title="Save"
                           >
@@ -791,14 +906,18 @@ export function LeaseDetailModal({ isOpen, onClose, leaseId, onAction }: LeaseDe
                               <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${invoiceStatusColors[inv.status]}`}>
                                 {inv.status}
                               </span>
+                              {inv.status === 'PAID' && inv.paymentMethod && (
+                                <p className="text-[10px] text-slate-400 mt-0.5">
+                                  {inv.paymentMethod === 'CASH' ? 'Cash' : `Transfer${inv.referenceNo ? `: ${inv.referenceNo}` : ''}`}
+                                </p>
+                              )}
                             </td>
                             <td className="px-3 py-2 text-right">
                               <div className="flex items-center justify-end gap-1">
                                 {(inv.status === 'PENDING' || inv.status === 'OVERDUE') && (
                                   <>
                                     <button
-                                      onClick={() => setPrompt({
-                                        kind: 'invoice-pay',
+                                      onClick={() => setPayInvoicePrompt({
                                         invoiceId: inv.id,
                                         remaining: inv.amount - inv.paidAmount,
                                       })}
@@ -860,13 +979,25 @@ export function LeaseDetailModal({ isOpen, onClose, leaseId, onAction }: LeaseDe
         )}
       </Modal>
 
-      {/* Amount Prompt Overlay */}
+      {/* Pay Invoice Prompt */}
+      {payInvoicePrompt && (
+        <PayInvoicePrompt
+          remaining={payInvoicePrompt.remaining}
+          onConfirm={(amount, paymentMethod, referenceNo) => {
+            const { invoiceId } = payInvoicePrompt;
+            setPayInvoicePrompt(null);
+            handlePayInvoice(invoiceId, amount, paymentMethod, referenceNo);
+          }}
+          onCancel={() => setPayInvoicePrompt(null)}
+        />
+      )}
+
+      {/* Deposit Amount Prompt Overlay */}
       {prompt && (
         <AmountPrompt
           title={
-            prompt.kind === 'invoice-pay' ? 'Record Payment' :
             prompt.kind === 'deposit-receive' ? 'Receive Deposit' :
-            prompt.kind === 'deposit-refund' ? 'Refund Deposit' :
+            prompt.kind === 'deposit-refund'  ? 'Refund Deposit' :
             'Forfeit Deposit'
           }
           label={
@@ -875,18 +1006,15 @@ export function LeaseDetailModal({ isOpen, onClose, leaseId, onAction }: LeaseDe
               : 'Amount received (RM)'
           }
           hint={
-            prompt.kind === 'invoice-pay'
-              ? `Outstanding: RM ${prompt.remaining.toLocaleString('en-MY', { minimumFractionDigits: 2 })}`
-              : prompt.kind === 'deposit-receive'
+            prompt.kind === 'deposit-receive'
               ? `Outstanding: RM ${prompt.remaining.toLocaleString('en-MY', { minimumFractionDigits: 2 })}`
               : prompt.kind === 'deposit-refund'
               ? `Max refundable: RM ${prompt.remaining.toLocaleString('en-MY', { minimumFractionDigits: 2 })}`
               : `Deposit total: RM ${prompt.depositAmount.toLocaleString('en-MY', { minimumFractionDigits: 2 })}. Enter 0 to forfeit the full amount.`
           }
           defaultValue={
-            prompt.kind === 'invoice-pay' ? String(prompt.remaining) :
             prompt.kind === 'deposit-receive' ? String(prompt.remaining) :
-            prompt.kind === 'deposit-refund' ? String(prompt.remaining) :
+            prompt.kind === 'deposit-refund'  ? String(prompt.remaining) :
             '0'
           }
           onConfirm={handlePromptConfirm}
