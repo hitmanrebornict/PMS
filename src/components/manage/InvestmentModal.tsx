@@ -86,6 +86,7 @@ export function InvestmentModal({
             <input
               name="startDate"
               type="date"
+              lang="en-GB"
               defaultValue={selectedInvestment?.startDate?.slice(0, 10) ?? ''}
               required
               className={inputClass}
@@ -96,6 +97,7 @@ export function InvestmentModal({
             <input
               name="endDate"
               type="date"
+              lang="en-GB"
               defaultValue={selectedInvestment?.endDate?.slice(0, 10) ?? ''}
               required
               className={inputClass}

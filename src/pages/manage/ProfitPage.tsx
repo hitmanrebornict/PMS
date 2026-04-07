@@ -203,6 +203,7 @@ export function ProfitPage() {
         <span className="text-sm font-medium text-slate-600">Period:</span>
         <input
           type="date"
+          lang="en-GB"
           value={from}
           onChange={e => setFrom(e.target.value)}
           className="border border-slate-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -210,6 +211,7 @@ export function ProfitPage() {
         <span className="text-slate-400 text-sm">to</span>
         <input
           type="date"
+          lang="en-GB"
           value={to}
           onChange={e => setTo(e.target.value)}
           className="border border-slate-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"

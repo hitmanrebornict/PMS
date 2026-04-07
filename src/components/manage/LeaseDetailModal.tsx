@@ -388,6 +388,7 @@ export function LeaseDetailModal({ isOpen, onClose, leaseId, onAction }: LeaseDe
                       <label className="block text-xs text-slate-500 mb-1">End Date</label>
                       <input
                         type="date"
+                        lang="en-GB"
                         value={leaseEditForm.endDate}
                         onChange={e => setLeaseEditForm(f => ({ ...f, endDate: e.target.value }))}
                         className="w-full border border-slate-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -646,6 +647,7 @@ export function LeaseDetailModal({ isOpen, onClose, leaseId, onAction }: LeaseDe
                       <label className="block text-xs text-slate-500 mb-0.5">Period Start</label>
                       <input
                         type="date"
+                        lang="en-GB"
                         value={newInvoiceForm.periodStart}
                         onChange={e => setNewInvoiceForm(f => ({ ...f, periodStart: e.target.value }))}
                         className="w-full border border-slate-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500"
@@ -655,6 +657,7 @@ export function LeaseDetailModal({ isOpen, onClose, leaseId, onAction }: LeaseDe
                       <label className="block text-xs text-slate-500 mb-0.5">Period End</label>
                       <input
                         type="date"
+                        lang="en-GB"
                         value={newInvoiceForm.periodEnd}
                         onChange={e => setNewInvoiceForm(f => ({ ...f, periodEnd: e.target.value }))}
                         className="w-full border border-slate-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500"
@@ -675,6 +678,7 @@ export function LeaseDetailModal({ isOpen, onClose, leaseId, onAction }: LeaseDe
                       <label className="block text-xs text-slate-500 mb-0.5">Due Date</label>
                       <input
                         type="date"
+                        lang="en-GB"
                         value={newInvoiceForm.dueDate}
                         onChange={e => setNewInvoiceForm(f => ({ ...f, dueDate: e.target.value }))}
                         className="w-full border border-slate-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500"
@@ -719,12 +723,14 @@ export function LeaseDetailModal({ isOpen, onClose, leaseId, onAction }: LeaseDe
                               <div className="grid grid-cols-2 gap-1">
                                 <input
                                   type="date"
+                                  lang="en-GB"
                                   value={invoiceEditForm.periodStart}
                                   onChange={e => setInvoiceEditForm(f => ({ ...f, periodStart: e.target.value }))}
                                   className="border border-slate-300 rounded px-1.5 py-1 text-xs w-full focus:outline-none focus:ring-1 focus:ring-indigo-500"
                                 />
                                 <input
                                   type="date"
+                                  lang="en-GB"
                                   value={invoiceEditForm.periodEnd}
                                   onChange={e => setInvoiceEditForm(f => ({ ...f, periodEnd: e.target.value }))}
                                   className="border border-slate-300 rounded px-1.5 py-1 text-xs w-full focus:outline-none focus:ring-1 focus:ring-indigo-500"
@@ -740,6 +746,7 @@ export function LeaseDetailModal({ isOpen, onClose, leaseId, onAction }: LeaseDe
                                 />
                                 <input
                                   type="date"
+                                  lang="en-GB"
                                   value={invoiceEditForm.dueDate}
                                   onChange={e => setInvoiceEditForm(f => ({ ...f, dueDate: e.target.value }))}
                                   className="border border-slate-300 rounded px-1.5 py-1 text-xs w-full focus:outline-none focus:ring-1 focus:ring-indigo-500"
@@ -900,6 +907,7 @@ export function LeaseDetailModal({ isOpen, onClose, leaseId, onAction }: LeaseDe
               <label className="block text-sm text-slate-600 mb-1">Termination Date</label>
               <input
                 type="date"
+                lang="en-GB"
                 value={terminationDate}
                 min={toInputDate(lease.startDate)}
                 max={toInputDate(lease.endDate)}

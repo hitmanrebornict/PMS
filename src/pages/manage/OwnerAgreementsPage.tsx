@@ -403,6 +403,7 @@ export function OwnerAgreementsPage({
               <label className="block text-sm font-medium text-slate-700 mb-1">Termination Date</label>
               <input
                 type="date"
+                lang="en-GB"
                 value={terminationDate}
                 min={terminateTarget.startDate.slice(0, 10)}
                 max={terminateTarget.endDate.slice(0, 10)}
