@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Customer, DataSource } from '../../types';
+import { Customer, DataSource, Gender } from '../../types';
 import { Modal } from '../common/Modal';
 
 interface CustomerModalProps {
@@ -33,18 +33,34 @@ export function CustomerModal({ isOpen, onClose, onSubmit, selectedCustomer, dat
       title={selectedCustomer ? 'Edit Customer' : 'Add New Customer'}
     >
       <form onSubmit={handleSubmit} className="space-y-4">
-        {/* Name */}
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">
-            Full Name <span className="text-rose-500">*</span>
-          </label>
-          <input
-            name="name"
-            defaultValue={selectedCustomer?.name}
-            required
-            className="w-full px-4 py-2 rounded-lg border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
-            placeholder="e.g. Tan Wei Ming"
-          />
+        {/* Gender + Name */}
+        <div className="grid grid-cols-[120px_1fr] gap-3 items-end">
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">
+              Gender
+            </label>
+            <select
+              name="gender"
+              defaultValue={selectedCustomer?.gender ?? ''}
+              className="w-full px-3 py-2 rounded-lg border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none bg-white"
+            >
+              <option value="">— N/A —</option>
+              <option value={Gender.MALE}>Mr. (Male)</option>
+              <option value={Gender.FEMALE}>Ms. (Female)</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">
+              Full Name <span className="text-rose-500">*</span>
+            </label>
+            <input
+              name="name"
+              defaultValue={selectedCustomer?.name}
+              required
+              className="w-full px-4 py-2 rounded-lg border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
+              placeholder="e.g. Tan Wei Ming"
+            />
+          </div>
         </div>
 
         {/* Phone numbers */}

@@ -58,6 +58,11 @@ enum InvoiceStatus {
   CANCELLED
 }
 
+enum Gender {
+  MALE
+  FEMALE
+}
+
 enum DepositStatus {
   PENDING
   PARTIALLY_HELD
@@ -188,6 +193,7 @@ model Customer {
   id             String      @id @default(uuid())
   customerNo     Int         @unique @default(autoincrement())
   name           String
+  gender         Gender?
   phoneLocal     String
   phoneOther     String?
   icPassport     String      @unique

@@ -42,6 +42,11 @@ export interface Carpark {
 
 // ─── Customer ────────────────────────────────────────────────────────────────
 
+export enum Gender {
+  MALE = 'MALE',
+  FEMALE = 'FEMALE',
+}
+
 export interface DataSource {
   id: string;
   name: string;
@@ -54,6 +59,7 @@ export interface Customer {
   id: string;
   customerNo?: number;
   name: string;
+  gender?: Gender | null;
   phoneLocal: string;
   phoneOther?: string;
   icPassport: string;
@@ -305,6 +311,7 @@ export interface ExpenseSummaryProperty {
 export interface CustomerSearchResult {
   id: string;
   name: string;
+  gender?: Gender | null;
   phoneLocal: string;
   icPassport: string;
   email?: string;

@@ -382,7 +382,9 @@ export function LeaseBookingModal({ isOpen, onClose, onSuccess, dataSources = []
                   <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-lg">
                     <UserCheck size={16} className="text-green-600" />
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-slate-900">{selectedCustomer.name}</p>
+                      <p className="text-sm font-medium text-slate-900">
+                        {selectedCustomer.gender === 'MALE' ? 'Mr. ' : selectedCustomer.gender === 'FEMALE' ? 'Ms. ' : ''}{selectedCustomer.name}
+                      </p>
                       <p className="text-xs text-slate-500">{selectedCustomer.icPassport} &middot; {selectedCustomer.phoneLocal}</p>
                     </div>
                     <button
@@ -417,7 +419,9 @@ export function LeaseBookingModal({ isOpen, onClose, onSuccess, dataSources = []
                             }}
                             className="w-full text-left px-3 py-2 hover:bg-slate-50 border-b border-slate-100 last:border-0"
                           >
-                            <p className="text-sm font-medium text-slate-900">{c.name}</p>
+                            <p className="text-sm font-medium text-slate-900">
+                              {c.gender === 'MALE' ? 'Mr. ' : c.gender === 'FEMALE' ? 'Ms. ' : ''}{c.name}
+                            </p>
                             <p className="text-xs text-slate-500">{c.icPassport} &middot; {c.phoneLocal}</p>
                           </button>
                         ))}

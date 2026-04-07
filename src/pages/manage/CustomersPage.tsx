@@ -72,7 +72,14 @@ export function CustomersPage({ customers, onAdd, onEdit, onDelete }: CustomersP
                 <tr key={customer.id} className="hover:bg-slate-50 transition-colors">
                   <td className="px-4 py-4 text-slate-400 text-sm">{customer.customerNo ?? idx + 1}</td>
                   <td className="px-4 py-4">
-                    <div className="font-semibold text-slate-900">{customer.name}</div>
+                    <div className="font-semibold text-slate-900 flex items-center gap-1.5">
+                      {customer.gender && (
+                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${customer.gender === 'MALE' ? 'bg-blue-50 text-blue-600' : 'bg-pink-50 text-pink-600'}`}>
+                          {customer.gender === 'MALE' ? 'Mr.' : 'Ms.'}
+                        </span>
+                      )}
+                      {customer.name}
+                    </div>
                     {customer.phoneOther && (
                       <div className="text-xs text-slate-400 mt-0.5">Overseas: {customer.phoneOther}</div>
                     )}
