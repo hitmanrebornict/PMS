@@ -66,6 +66,12 @@ enum DepositStatus {
   FORFEITED
 }
 
+enum InvestmentStatus {
+  ACTIVE
+  MATURED
+  WITHDRAWN
+}
+
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 
 model User {
@@ -183,9 +189,10 @@ model Customer {
   createdAt      DateTime    @default(now())
   updatedAt      DateTime    @updatedAt
 
-  dataSource DataSource?      @relation(fields: [dataSourceId], references: [id], onDelete: SetNull)
-  leases     LeaseAgreement[]
-  files      File[]
+  dataSource  DataSource?      @relation(fields: [dataSourceId], references: [id], onDelete: SetNull)
+  leases      LeaseAgreement[]
+  files       File[]
+  investments Investment[]
 
   @@map("customers")
 }
@@ -216,9 +223,10 @@ model Unit {
   createdAt            DateTime    @default(now())
   updatedAt            DateTime    @updatedAt
 
-  property MasterProperty  @relation(fields: [propertyId], references: [id], onDelete: Cascade)
-  leases   LeaseAgreement[]
-  expenses Expense[]
+  property    MasterProperty  @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  leases      LeaseAgreement[]
+  expenses    Expense[]
+  investments Investment[]
 
   @@unique([propertyId, unitNumber])
   @@map("units")
@@ -334,6 +342,27 @@ model Expense {
   expenseType ExpenseType @relation(fields: [expenseTypeId], references: [id], onDelete: Restrict)
 
   @@map("expenses")
+}
+
+// ─── Investment Management ────────────────────────────────────────────────────
+
+model Investment {
+  id            String           @id @default(uuid())
+  customerId    String
+  unitId        String
+  capitalAmount Decimal          @db.Decimal(12, 2)
+  startDate     DateTime
+  endDate       DateTime
+  status        InvestmentStatus @default(ACTIVE)
+  notes         String?
+  isActive      Boolean          @default(true)
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  unit     Unit     @relation(fields: [unitId], references: [id], onDelete: Restrict)
+
+  @@map("investments")
 }
 
 // ─── File Storage ─────────────────────────────────────────────────────────────

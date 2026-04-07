@@ -43,7 +43,7 @@ Full-stack property management system: **Vite + React 19** frontend with **Expre
 - **Routing:** React Router 7 — public routes (`/`, `/login`) and protected routes under `/manage/*`
 - **Auth state:** `AuthContext` (React Context) handles JWT tokens, auto-refresh (every 14min), and session persistence via HTTP-only cookies
 - **Data flow:** `App.tsx` centralizes data management using `useApi` hook. All CRUD operations go through the backend API — no localStorage.
-- **Pages:** `src/pages/manage/` — Dashboard, MasterProperties, Units, Carparks, Timeline, Customers, DataSources, Leases, Expenses, Profit, Users
+- **Pages:** `src/pages/manage/` — Dashboard, MasterProperties, Units, Carparks, Timeline, Customers, Companies, DataSources, Leases, Expenses, Profit, Users
 - **Modals:** `src/components/manage/` — CRUD modal dialogs for each entity + LeaseBookingModal (create lease) + LeaseDetailModal (view/edit lease + invoices)
 - **i18n:** `src/i18n/` — LanguageContext + translations file for multi-language support
 
@@ -51,7 +51,7 @@ Full-stack property management system: **Vite + React 19** frontend with **Expre
 
 - **Express** server on port 5000, serves built frontend static files in production
 - **API prefix:** All routes under `/api/`
-- **Route files:** `server/routes/` — `auth.ts`, `assets.ts`, `customers.ts`, `datasources.ts`, `inventory.ts`, `bookings.ts`, `leases.ts`, `expenses.ts`, `profit.ts`, `upload.ts`, `reminders.ts`
+- **Route files:** `server/routes/` — `auth.ts`, `assets.ts`, `customers.ts`, `companies.ts`, `datasources.ts`, `inventory.ts`, `bookings.ts`, `leases.ts`, `expenses.ts`, `profit.ts`, `upload.ts`, `reminders.ts`
 - **Middleware chain:** `authenticate` (JWT verify) → `authorize(role)` (RBAC) → handler
 - **Auth service:** `server/services/auth.service.ts` — JWT access tokens (15min), refresh token rotation (7d), account lockout after 5 failed attempts
 - **Lease service:** `server/services/lease.service.ts` — conflict detection, invoice generation, total calculation
@@ -70,6 +70,8 @@ Full-stack property management system: **Vite + React 19** frontend with **Expre
 | `/api/assets/units` | GET, POST, PUT, DELETE | Viewer/Manager | Unit CRUD |
 | `/api/assets/carparks` | GET, POST, PUT, DELETE | Viewer/Manager | Carpark CRUD |
 | `/api/customers` | GET, POST, PUT, DELETE | Viewer/Manager | Customer CRUD |
+| `/api/companies` | GET, POST, PUT, DELETE | Viewer/Manager | Company CRUD |
+| `/api/companies/search` | GET | Viewer | Company search by name/manager/phone |
 | `/api/datasources` | GET, POST, PUT, DELETE | Viewer/Manager | DataSource CRUD |
 | `/api/inventory/timeline` | GET | Viewer | Timeline data (units + carparks + leases) |
 | `/api/inventory/customers/search` | GET | Viewer | Customer search by name/phone/IC |
@@ -97,9 +99,9 @@ Full-stack property management system: **Vite + React 19** frontend with **Expre
 ### Database (`prisma/`)
 
 - **Schema:** `prisma/schema.prisma`
-- **Asset models:** MasterProperty → Unit (cascade delete), Carpark (independent)
-- **Customer models:** DataSource (optional) → Customer
-- **Lease models:** LeaseAgreement → LeaseDeposit, Invoice (cascade delete)
+- **Asset models:** MasterProperty → Unit (cascade delete), Carpark (independent, optional `unitNo` remark field)
+- **Customer models:** DataSource (optional) → Customer; Company (independent, same optional DataSource FK)
+- **Lease models:** LeaseAgreement → LeaseDeposit, Invoice (cascade delete). `customerId` is nullable — a lease belongs to either a Customer or a Company (`companyId`), never both. Stores `promotionAmount` and `cleaningFee` as Decimal fields.
 - **Expense models:** ExpenseType, Expense (belongs to Unit)
 - **Auth models:** User, RefreshToken, PasswordResetToken, AuditLog
 - **File model:** linked only to User (uploader) and optionally Customer — no other FKs
@@ -110,7 +112,7 @@ Full-stack property management system: **Vite + React 19** frontend with **Expre
 
 ### Soft Delete
 
-All deletable entities use soft delete — **DELETE routes set `isActive = false`** rather than removing the row. All GET routes filter `WHERE isActive = true`. Affected models: `Customer`, `MasterProperty`, `Unit`, `Carpark`, `Expense`, `ExpenseType`, `DataSource`. Deleting a `MasterProperty` also soft-deletes all its `Unit` rows in a transaction.
+All deletable entities use soft delete — **DELETE routes set `isActive = false`** rather than removing the row. All GET routes filter `WHERE isActive = true`. Affected models: `Customer`, `Company`, `MasterProperty`, `Unit`, `Carpark`, `Expense`, `ExpenseType`, `DataSource`. Deleting a `MasterProperty` also soft-deletes all its `Unit` rows in a transaction.
 
 ### Role Hierarchy
 
@@ -121,7 +123,7 @@ All deletable entities use soft delete — **DELETE routes set `isActive = false
 - **API hook:** `src/hooks/useApi.ts` wraps `fetch()` with auth headers from `useAuth()` context
 - **Decimal handling:** Prisma `Decimal` fields (prices) must be converted to `Number()` in API responses
 - **Prisma error codes:** `P2002` = unique constraint violation (→ 409), `P2003` = foreign key violation (→ 409), `P2025` = record not found (→ 404)
-- **Stale Prisma types:** When schema changes are made without running `prisma generate` (e.g. in Docker), new fields/models cause TypeScript errors. Fix with `as any` casts on the affected `prisma.*` calls until the client is regenerated.
+- **Stale Prisma types:** When schema changes are made without running `prisma generate` (e.g. in Docker), new fields/models cause TypeScript errors. Fix with `as any` casts — but for entirely new models (e.g. `Company`), `prisma.company` itself is invalid, so cast the client: `(prisma as any).company.findMany(...)`, not `(prisma.company.findMany as any)()`.
 - **Timeline page** fetches its own data via `useApi` (not from App.tsx state)
 - **LeaseBookingModal** handles customer search and lease creation independently via API
 - **Profit page** uses cash-basis accounting: only invoices with `status='PAID'` and `paidAt` within the selected period count as income. Carparks are shown separately (no property/unit hierarchy).
@@ -129,6 +131,12 @@ All deletable entities use soft delete — **DELETE routes set `isActive = false
 - **Date format:** All dates display as `dd/MM/yyyy` — use `toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })`.
 - **Inclusive DAILY billing:** End date is inclusive. `diffDays = Math.round(diffMs / ms_per_day) + 1`. MONTHLY billing uses calendar-month diff: `(endYear - startYear) * 12 + (endMonth - startMonth)`.
 - **Partial payments:** Invoices track `paidAmount`; status stays `PENDING` until `paidAmount >= amount`. Deposits track `receivedAmount` and `refundedAmount` with statuses `PARTIALLY_HELD`, `HELD`, `PARTIALLY_REFUNDED`, `REFUNDED`, `FORFEITED`.
+- **Lease renter type:** A lease is for either an Individual (`customerId` set) or a Company (`companyId` set). `LeaseBookingModal` has a toggle between the two. Timeline and Leases pages use `customer?.name ?? company?.name`.
+- **Promotion:** Stored as `promotionAmount` on the lease. Invoice amounts use `effectivePrice = unitPrice - promotionAmount` — promotion reduces income directly, it is NOT recorded as an expense.
+- **Cleaning fee:** Stored as `cleaningFee` on the lease. When `cleaningFee > 0` and the lease has a `unitId`, `lease.service.ts` auto-creates one Expense per billing period using an upserted "Cleaning Fee" expense type. Only applies to unit leases (carpark leases have no unitId).
+- **Auto end-date:** In `LeaseBookingModal`, changing `startDate` or `billingCycle` auto-fills `endDate`: MONTHLY → start + 30 days; FIXED_TERM → same day next calendar month; DAILY → no auto-fill.
+- **Terminate with date picker:** `PATCH /api/leases/:id/terminate` accepts optional `terminationDate`. Invoices with `periodStart > terminationDate` are cancelled; lease `endDate` is updated to the chosen date. UI shows an inline date-picker overlay constrained to the lease period.
+- **Profit date defaults:** `defaultFrom()` / `defaultTo()` use `Date.UTC()` to avoid timezone-offset shifting the month boundary.
 
 ### Tab-Based Navigation
 
