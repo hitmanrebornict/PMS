@@ -16,7 +16,7 @@ const createPropertySchema = z.object({
 const createUnitSchema = z.object({
   propertyId: z.string().uuid(),
   unitNumber: z.string().min(1).max(50),
-  type: z.enum(['STUDIO', 'ONE_BEDROOM', 'TWO_BEDROOM', 'BUNGALOW', 'OTHER']),
+  type: z.enum(['STUDIO', 'ONE_BEDROOM', 'TWO_BEDROOM', 'THREE_BEDROOM', 'BUNGALOW', 'OTHER']),
   suggestedRentalPrice: z.number().min(0),
   status: z.enum(['VACANT', 'OCCUPIED', 'MAINTENANCE']).default('VACANT'),
 });
