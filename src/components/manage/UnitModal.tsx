@@ -54,6 +54,7 @@ export function UnitModal({ isOpen, onClose, onSubmit, selectedUnit, properties 
               <option value={UnitType.STUDIO}>Studio</option>
               <option value={UnitType.ONE_BEDROOM}>1 Bedroom</option>
               <option value={UnitType.TWO_BEDROOM}>2 Bedroom</option>
+              <option value={UnitType.THREE_BEDROOM}>3 Bedroom</option>
               <option value={UnitType.BUNGALOW}>Bungalow</option>
               <option value={UnitType.OTHER}>Other</option>
             </select>

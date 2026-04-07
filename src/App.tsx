@@ -29,6 +29,7 @@ import { ExpensesPage }     from './pages/manage/ExpensesPage';
 import { ProfitPage }       from './pages/manage/ProfitPage';
 import { DataSourcesPage }  from './pages/manage/DataSourcesPage';
 import { InvestmentsPage }       from './pages/manage/InvestmentsPage';
+import { InvestmentProfitPage } from './pages/manage/InvestmentProfitPage';
 import { OwnerAgreementsPage }  from './pages/manage/OwnerAgreementsPage';
 
 // Modals
@@ -637,7 +638,7 @@ export default function App() {
       />
     ),
     users: <UsersPage />,
-    profit: <ProfitPage />,
+    profit: <ProfitPage properties={masterProperties} units={units} carparks={carparks} />,
     ownerAgreements: (
       <OwnerAgreementsPage
         units={units}
@@ -660,6 +661,7 @@ export default function App() {
         refreshSignal={investmentRefreshSignal}
       />
     ),
+    investmentProfit: <InvestmentProfitPage />,
     expenses: (
       <ExpensesPage
         expenseTypes={expenseTypes}
