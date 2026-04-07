@@ -1,11 +1,11 @@
 
-import { Building2, Users, CalendarDays, LayoutDashboard, X, Home, Car, FileText, UserCog, Receipt, TrendingUp, Share2, Briefcase } from 'lucide-react';
+import { Building2, Users, CalendarDays, LayoutDashboard, X, Home, Car, FileText, UserCog, Receipt, TrendingUp, Share2, Briefcase, PiggyBank } from 'lucide-react';
 
 import { motion, AnimatePresence } from 'motion/react';
 import { SidebarItem } from '../common/SidebarItem';
 import { useAuth } from '../../contexts/AuthContext';
 
-export type ActiveTab = 'dashboard' | 'masterProperties' | 'units' | 'carparks' | 'timeline' | 'leases' | 'customers' | 'companies' | 'dataSources' | 'expenses' | 'profit' | 'users';
+export type ActiveTab = 'dashboard' | 'masterProperties' | 'units' | 'carparks' | 'timeline' | 'leases' | 'customers' | 'companies' | 'dataSources' | 'expenses' | 'profit' | 'investments' | 'users';
 
 interface ManageSidebarProps {
   activeTab: ActiveTab;
@@ -80,6 +80,7 @@ export function ManageSidebar({ activeTab, setActiveTab, isOpen, setIsOpen }: Ma
           <SidebarItem icon={<Share2 size={20} />}         label="Data Sources"  active={activeTab === 'dataSources'} onClick={() => navigate('dataSources')} />
           <SidebarItem icon={<Receipt size={20} />}        label="Expenses"      active={activeTab === 'expenses'}    onClick={() => navigate('expenses')} />
           <SidebarItem icon={<TrendingUp size={20} />}    label="Profit"        active={activeTab === 'profit'}      onClick={() => navigate('profit')} />
+          <SidebarItem icon={<PiggyBank size={20} />}     label="Investments"   active={activeTab === 'investments'} onClick={() => navigate('investments')} />
 
           {isSuperAdmin && (
             <>

@@ -90,6 +90,34 @@ export interface CompanySearchResult {
   email?: string | null;
 }
 
+// ─── Investment ──────────────────────────────────────────────────────────────
+
+export type InvestmentStatus = 'ACTIVE' | 'MATURED' | 'WITHDRAWN';
+
+export interface Investment {
+  id: string;
+  customerId: string;
+  unitId: string;
+  capitalAmount: number;
+  startDate: string;
+  endDate: string;
+  status: InvestmentStatus;
+  notes?: string | null;
+  createdAt: string;
+  customer?: {
+    id: string;
+    customerNo?: number;
+    name: string;
+    phoneLocal: string;
+    icPassport: string;
+  };
+  unit?: {
+    id: string;
+    unitNumber: string;
+    property?: { id: string; name: string };
+  };
+}
+
 // ─── Timeline / Lease ────────────────────────────────────────────────────────
 
 export type LeaseStatusType = 'UPCOMING' | 'ACTIVE' | 'TERMINATED' | 'COMPLETED';

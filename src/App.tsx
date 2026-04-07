@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'motion/react';
 
 // Types
 import {
-  Customer, Lease, Company,
+  Customer, Lease, Company, Investment,
   MasterProperty, Unit, Carpark, UnitType, AssetStatus,
   ExpenseType, Expense, DataSource,
 } from './types';
@@ -28,6 +28,7 @@ import { UsersPage }        from './pages/manage/UsersPage';
 import { ExpensesPage }     from './pages/manage/ExpensesPage';
 import { ProfitPage }       from './pages/manage/ProfitPage';
 import { DataSourcesPage }  from './pages/manage/DataSourcesPage';
+import { InvestmentsPage } from './pages/manage/InvestmentsPage';
 
 // Modals
 import { MasterPropertyModal }   from './components/manage/MasterPropertyModal';
@@ -40,6 +41,7 @@ import { LeaseDetailModal }      from './components/manage/LeaseDetailModal';
 import { ExpenseTypeModal }      from './components/manage/ExpenseTypeModal';
 import { ExpenseModal }          from './components/manage/ExpenseModal';
 import { DataSourceModal }       from './components/manage/DataSourceModal';
+import { InvestmentModal }      from './components/manage/InvestmentModal';
 
 export default function App() {
   const { apiFetch } = useApi();
@@ -83,6 +85,9 @@ export default function App() {
   const [companies,             setCompanies]             = useState<Company[]>([]);
   const [isCompanyModalOpen,    setIsCompanyModalOpen]    = useState(false);
   const [selectedCompany,       setSelectedCompany]       = useState<Company | null>(null);
+  const [isInvestmentModalOpen, setIsInvestmentModalOpen] = useState(false);
+  const [selectedInvestment,    setSelectedInvestment]    = useState<Investment | null>(null);
+  const [investmentRefreshSignal, setInvestmentRefreshSignal] = useState(0);
 
   // ─── Load data from API ────────────────────────────────────────
   const refreshData = useCallback(async () => {
@@ -337,6 +342,44 @@ export default function App() {
     }
   };
 
+  // ─── Investment Handlers ───────────────────────────────────────
+
+  const handleSaveInvestment = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const fd = new FormData(e.currentTarget);
+    const payload = {
+      customerId:    fd.get('customerId') as string,
+      unitId:        fd.get('unitId') as string,
+      capitalAmount: parseFloat(fd.get('capitalAmount') as string),
+      startDate:     fd.get('startDate') as string,
+      endDate:       fd.get('endDate') as string,
+      status:        fd.get('status') as string,
+      notes:         (fd.get('notes') as string) || undefined,
+    };
+    const url    = selectedInvestment ? `/api/investments/${selectedInvestment.id}` : '/api/investments';
+    const method = selectedInvestment ? 'PUT' : 'POST';
+    const res = await apiFetch(url, { method, body: JSON.stringify(payload) });
+    if (res.ok) {
+      setIsInvestmentModalOpen(false);
+      setSelectedInvestment(null);
+      setInvestmentRefreshSignal(s => s + 1);
+    } else {
+      const data = await res.json();
+      alert(data.error || 'Failed to save investment');
+    }
+  };
+
+  const handleDeleteInvestment = async (inv: Investment) => {
+    if (!confirm(`Delete this investment record for "${inv.customer?.name}"?`)) return;
+    const res = await apiFetch(`/api/investments/${inv.id}`, { method: 'DELETE' });
+    if (res.ok) {
+      setInvestmentRefreshSignal(s => s + 1);
+    } else {
+      const data = await res.json();
+      alert(data.error || 'Failed to delete investment');
+    }
+  };
+
   // ─── Expense Type Handlers ─────────────────────────────────────
 
   const handleSaveExpenseType = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -507,6 +550,16 @@ export default function App() {
     ),
     users: <UsersPage />,
     profit: <ProfitPage />,
+    investments: (
+      <InvestmentsPage
+        units={units}
+        customers={customers}
+        onAdd={() => { setSelectedInvestment(null); setIsInvestmentModalOpen(true); }}
+        onEdit={inv => { setSelectedInvestment(inv); setIsInvestmentModalOpen(true); }}
+        onDelete={handleDeleteInvestment}
+        refreshSignal={investmentRefreshSignal}
+      />
+    ),
     expenses: (
       <ExpensesPage
         expenseTypes={expenseTypes}
@@ -642,6 +695,14 @@ export default function App() {
         properties={masterProperties}
         units={units}
         prefillUnitId={expensePrefillUnitId}
+      />
+      <InvestmentModal
+        isOpen={isInvestmentModalOpen}
+        onClose={() => { setIsInvestmentModalOpen(false); setSelectedInvestment(null); }}
+        onSubmit={handleSaveInvestment}
+        selectedInvestment={selectedInvestment}
+        units={units}
+        customers={customers}
       />
     </div>
   );

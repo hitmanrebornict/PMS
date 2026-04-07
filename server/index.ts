@@ -19,6 +19,7 @@ import expensesRouter from './routes/expenses.js';
 import profitRouter from './routes/profit.js';
 import dataSourcesRouter from './routes/datasources.js';
 import companiesRouter from './routes/companies.js';
+import investmentsRouter from './routes/investments.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -79,6 +80,7 @@ app.use('/api/expenses', expensesRouter);
 app.use('/api/profit', profitRouter);
 app.use('/api/datasources', dataSourcesRouter);
 app.use('/api/companies', companiesRouter);
+app.use('/api/investments', investmentsRouter);
 
 // Health check
 app.get('/api/health', (_req, res) => {
