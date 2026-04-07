@@ -306,10 +306,11 @@ export function ExpensesPage({
                           {unit.expenses.length === 0 ? (
                             <p className="px-12 py-3 text-xs text-slate-400">No expenses logged for this unit.</p>
                           ) : (
-                            <table className="w-full text-sm">
+                            <div className="overflow-x-auto">
+                            <table className="w-full text-sm min-w-[540px]">
                               <thead>
                                 <tr className="text-xs text-slate-400 uppercase tracking-wide">
-                                  <th className="px-12 py-2 text-left font-semibold">Date</th>
+                                  <th className="px-8 py-2 text-left font-semibold">Date</th>
                                   <th className="px-3 py-2 text-left font-semibold">Type</th>
                                   <th className="px-3 py-2 text-left font-semibold">Description</th>
                                   <th className="px-3 py-2 text-right font-semibold">Amount</th>
@@ -319,13 +320,13 @@ export function ExpensesPage({
                               <tbody>
                                 {unit.expenses.map(exp => (
                                   <tr key={exp.id} className="border-t border-slate-100 hover:bg-white/60 transition-colors">
-                                    <td className="px-12 py-2.5 text-slate-600 whitespace-nowrap">{formatDate(exp.expenseDate)}</td>
+                                    <td className="px-8 py-2.5 text-slate-600 whitespace-nowrap">{formatDate(exp.expenseDate)}</td>
                                     <td className="px-3 py-2.5">
-                                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-50 text-indigo-700 border border-indigo-100">
+                                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-50 text-indigo-700 border border-indigo-100 whitespace-nowrap">
                                         {exp.expenseType.name}
                                       </span>
                                     </td>
-                                    <td className="px-3 py-2.5 text-slate-500 truncate max-w-[200px]">{exp.description ?? '—'}</td>
+                                    <td className="px-3 py-2.5 text-slate-500 max-w-[160px] truncate">{exp.description ?? '—'}</td>
                                     <td className="px-3 py-2.5 text-right font-medium text-slate-800 whitespace-nowrap">{fmt(exp.amount)}</td>
                                     <td className="px-3 py-2.5 text-right">
                                       <div className="flex items-center justify-end gap-1">
@@ -349,6 +350,7 @@ export function ExpensesPage({
                                 ))}
                               </tbody>
                             </table>
+                          </div>
                           )}
                         </div>
                       )}

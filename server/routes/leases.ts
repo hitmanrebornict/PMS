@@ -399,6 +399,8 @@ invoicesRouter.patch('/:id', authenticate, requireManager, async (req: AuthReque
 // PATCH /api/invoices/:id/pay — Mark invoice as paid (full or partial)
 const payInvoiceSchema = z.object({
   amount: z.number().positive(),
+  paymentMethod: z.enum(['CASH', 'BANK_TRANSFER']).optional(),
+  referenceNo: z.string().max(100).optional(),
 });
 
 invoicesRouter.patch('/:id/pay', authenticate, requireManager, async (req: AuthRequest, res: Response) => {
@@ -428,6 +430,8 @@ invoicesRouter.patch('/:id/pay', authenticate, requireManager, async (req: AuthR
       where: { id: req.params.id },
       data: {
         paidAmount: new Decimal(Math.min(newPaidAmount, invoiceAmount)),
+        ...(parsed.data.paymentMethod ? { paymentMethod: parsed.data.paymentMethod } : {}),
+        ...(parsed.data.referenceNo   ? { referenceNo:   parsed.data.referenceNo   } : {}),
         ...(isFullyPaid ? { status: 'PAID', paidAt: new Date() } : {}),
       },
     });
@@ -511,20 +515,8 @@ depositsRouter.patch('/:id', authenticate, requireManager, async (req: AuthReque
         res.status(400).json({ error: 'Cannot edit deposit amount after refund or forfeit' });
         return;
       }
-      if (amount <= 0) {
-        res.status(400).json({ error: 'Deposit amount must be greater than 0' });
-        return;
-      }
+      // Allow any amount >= 0; status is preserved exactly as-is
       data.amount = new Decimal(amount);
-      // If received amount exceeds new amount, cap it and adjust status
-      const currentReceived = Number(deposit.receivedAmount ?? 0);
-      if (currentReceived > 0 && currentReceived >= amount) {
-        data.receivedAmount = new Decimal(amount);
-        data.status = 'HELD';
-        data.paidAt = deposit.paidAt || new Date();
-      } else if (currentReceived > 0 && currentReceived < amount) {
-        data.status = 'PARTIALLY_HELD';
-      }
     }
 
     const updated = await prisma.leaseDeposit.update({ where: { id: req.params.id }, data }) as any;

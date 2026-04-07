@@ -181,6 +181,8 @@ export interface LeaseDepositInfo {
   refundedAt?: string | null;
 }
 
+export type PaymentMethod = 'CASH' | 'BANK_TRANSFER';
+
 export interface LeaseInvoice {
   id: string;
   periodStart: string;
@@ -190,6 +192,8 @@ export interface LeaseInvoice {
   status: InvoiceStatusType;
   dueDate: string;
   paidAt?: string | null;
+  paymentMethod?: PaymentMethod | null;
+  referenceNo?: string | null;
 }
 
 export interface Lease {
