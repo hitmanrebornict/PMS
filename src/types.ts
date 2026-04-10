@@ -196,6 +196,16 @@ export interface LeaseInvoice {
   referenceNo?: string | null;
 }
 
+export interface LeaseFile {
+  id: string;
+  originalName: string;
+  mimeType: string;
+  size: number;
+  category: string;
+  createdAt: string;
+  uploadedBy?: { name: string };
+}
+
 export interface Lease {
   id: string;
   startDate: string;
@@ -207,8 +217,8 @@ export interface Lease {
   cleaningFee: number;
   status: LeaseStatusType;
   notes?: string;
-  customer?: { id: string; name: string; phoneLocal: string; icPassport: string } | null;
-  company?: { id: string; name: string; phone?: string | null } | null;
+  customer?: { id: string; name: string; phoneLocal: string; icPassport: string; whatsappNumber?: string | null } | null;
+  company?: { id: string; name: string; phone?: string | null; whatsappNumber?: string | null } | null;
   unit?: { id: string; unitNumber: string; property: { name: string } } | null;
   carpark?: { id: string; carparkNumber: string } | null;
   deposit?: LeaseDepositInfo | null;
@@ -217,8 +227,8 @@ export interface Lease {
 
 export interface LeaseDetail extends Omit<Lease, 'customer' | 'company'> {
   invoices: LeaseInvoice[];
-  customer?: { id: string; name: string; phoneLocal: string; icPassport: string; email?: string; currentAddress?: string } | null;
-  company?: { id: string; name: string; managerName?: string | null; email?: string | null; phone?: string | null; tinNumber?: string | null; address?: string | null } | null;
+  customer?: { id: string; name: string; phoneLocal: string; icPassport: string; email?: string; currentAddress?: string; whatsappNumber?: string | null } | null;
+  company?: { id: string; name: string; managerName?: string | null; email?: string | null; phone?: string | null; tinNumber?: string | null; address?: string | null; whatsappNumber?: string | null } | null;
 }
 
 // ─── Owner Agreement ─────────────────────────────────────────────────────────

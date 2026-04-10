@@ -53,13 +53,13 @@ router.post(
       return;
     }
 
-    const { customerId, category } = req.body;
+    const { customerId, leaseId, category } = req.body;
 
     try {
       const isPhoto = req.file.mimetype.startsWith('image/');
       const fileCategory = category || (isPhoto ? 'PHOTO' : 'DOCUMENT');
 
-      const record = await prisma.file.create({
+      const record = await (prisma.file.create as any)({
         data: {
           originalName: req.file.originalname,
           storedName: req.file.filename,
@@ -68,6 +68,7 @@ router.post(
           category: fileCategory,
           uploadedById: req.user!.userId,
           customerId: customerId || null,
+          leaseId: leaseId || null,
         },
       });
 
