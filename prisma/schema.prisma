@@ -297,6 +297,7 @@ model LeaseAgreement {
   carpark  Carpark?  @relation(fields: [carparkId], references: [id], onDelete: Restrict)
   deposit  LeaseDeposit?
   invoices Invoice[]
+  files    File[]
 
   @@map("lease_agreements")
 }
@@ -449,10 +450,12 @@ model File {
   category     FileCategory @default(DOCUMENT)
   uploadedById String
   customerId   String?
+  leaseId      String?
   createdAt    DateTime     @default(now())
 
-  uploadedBy User      @relation(fields: [uploadedById], references: [id])
-  customer   Customer? @relation(fields: [customerId], references: [id])
+  uploadedBy User             @relation(fields: [uploadedById], references: [id])
+  customer   Customer?        @relation(fields: [customerId], references: [id])
+  lease      LeaseAgreement?  @relation(fields: [leaseId], references: [id])
 
   @@map("files")
 }
