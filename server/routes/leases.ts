@@ -544,7 +544,12 @@ invoicesRouter.get('/:id/pdf', authenticate, requireViewer, async (req: AuthRequ
 
     // ── Header ──────────────────────────────────────────────────────────────
     doc.fontSize(22).font('Helvetica-Bold').text('VersaHome', 50, 50);
-    doc.fontSize(10).font('Helvetica').fillColor('#555555').text('Property Management', 50, 76);
+    doc.fontSize(10).font('Helvetica').fillColor('#555555')
+      .text('Property Management', 50, 76)
+      .text('(202601004828 (1666926-V))', 50, 89)
+      .text('D1-47-05, Razak City Residences 1', 50, 102)
+      .text('Jalan Razak Mansion, Sg. Besi', 50, 115)
+      .text('57100 Kuala Lumpur', 50, 128);
     doc.fillColor('#000000');
 
     doc.fontSize(18).font('Helvetica-Bold').text('INVOICE', 350, 50, { align: 'right', width: 195 });
@@ -552,10 +557,10 @@ invoicesRouter.get('/:id/pdf', authenticate, requireViewer, async (req: AuthRequ
       .text(`# ${invoice.id.slice(0, 8).toUpperCase()}`, 350, 74, { align: 'right', width: 195 });
     doc.fillColor('#000000');
 
-    doc.moveTo(50, 100).lineTo(545, 100).strokeColor('#cccccc').stroke();
+    doc.moveTo(50, 148).lineTo(545, 148).strokeColor('#cccccc').stroke();
 
     // ── Tenant details ───────────────────────────────────────────────────────
-    doc.y = 115;
+    doc.y = 163;
     doc.fontSize(9).font('Helvetica-Bold').text('BILL TO', 50);
     doc.font('Helvetica').fontSize(11).text(tenantName, 50, doc.y + 4);
     if (tenantId)      doc.fontSize(9).fillColor('#555555').text(tenantId);
@@ -565,8 +570,8 @@ invoicesRouter.get('/:id/pdf', authenticate, requireViewer, async (req: AuthRequ
 
     // ── Asset + Period (right column) ────────────────────────────────────────
     const col2x = 350;
-    doc.fontSize(9).font('Helvetica-Bold').text('PROPERTY', col2x, 115, { width: 195 });
-    doc.font('Helvetica').fontSize(10).text(assetLabel, col2x, 129, { width: 195 });
+    doc.fontSize(9).font('Helvetica-Bold').text('PROPERTY', col2x, 163, { width: 195 });
+    doc.font('Helvetica').fontSize(10).text(assetLabel, col2x, 177, { width: 195 });
     if (propertyAddress) doc.fontSize(9).fillColor('#555555').text(propertyAddress, col2x, doc.y, { width: 195 });
     doc.fillColor('#000000');
 
@@ -579,7 +584,7 @@ invoicesRouter.get('/:id/pdf', authenticate, requireViewer, async (req: AuthRequ
     doc.font('Helvetica').fontSize(10).text(formatDate(invoice.dueDate), col2x, rightY + 12, { width: 195 });
 
     // ── Amount table ─────────────────────────────────────────────────────────
-    const tableY = 280;
+    const tableY = 330;
     doc.moveTo(50, tableY).lineTo(545, tableY).strokeColor('#cccccc').stroke();
 
     doc.fontSize(9).font('Helvetica-Bold').fillColor('#555555');
