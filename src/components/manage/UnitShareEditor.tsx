@@ -153,7 +153,9 @@ export const UnitShareEditor: React.FC<UnitShareEditorProps> = ({ unitId, onSave
                 className="flex-1 px-3 py-1.5 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-indigo-500 outline-none bg-white"
               >
                 {available.map(u => (
-                  <option key={u.id} value={u.id}>{u.name} ({u.email})</option>
+                  <option key={u.id} value={u.id}>
+                    {u.username}{u.email ? ` (${u.email})` : ''}
+                  </option>
                 ))}
               </select>
               <div className="flex items-center gap-1">

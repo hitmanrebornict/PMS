@@ -415,14 +415,15 @@ export interface ProfitSummary {
 export interface UnitShare {
   userId: string;
   userName: string;
-  userEmail: string;
+  userEmail?: string | null;
   percentage: number;
 }
 
 export interface ShareableUser {
   id: string;
   name: string;
-  email: string;
+  username: string;
+  email?: string | null;
 }
 
 export interface ProfitSharingAllocation {

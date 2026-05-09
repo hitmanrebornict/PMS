@@ -30,16 +30,16 @@ const loginSchema = z.object({
 });
 
 const createUserSchema = z.object({
-  email: z.string().email(),
-  username: z.string().min(3).regex(/^[a-zA-Z0-9_]+$/, 'Username must be letters, numbers, or underscores').optional().nullable(),
+  username: z.string().min(3).regex(/^[a-zA-Z0-9_]+$/, 'Username must be letters, numbers, or underscores'),
+  email: z.string().email().optional().nullable(),
   password: z.string(),
   name: z.string().min(1),
   role: z.enum(['SUPER_ADMIN', 'ADMIN', 'MANAGER', 'VIEWER', 'PROFIT_SHARING']).default('VIEWER'),
 });
 
 const updateUserSchema = z.object({
-  email: z.string().email().optional(),
-  username: z.string().min(3).regex(/^[a-zA-Z0-9_]+$/, 'Username must be letters, numbers, or underscores').optional().nullable(),
+  email: z.string().email().optional().nullable(),
+  username: z.string().min(3).regex(/^[a-zA-Z0-9_]+$/, 'Username must be letters, numbers, or underscores').optional(),
   password: z.string().optional(),
   name: z.string().min(1).optional(),
   role: z.enum(['SUPER_ADMIN', 'ADMIN', 'MANAGER', 'VIEWER', 'PROFIT_SHARING']).optional(),
@@ -116,7 +116,8 @@ router.post('/login', async (req: Request, res: Response) => {
       accessToken,
       user: {
         id: user.id,
-        email: user.email,
+        email: user.email ?? null,
+        username: (user as any).username,
         name: user.name,
         role: user.role,
       },
@@ -264,9 +265,9 @@ router.post('/reset-password', async (req: Request, res: Response) => {
 
 router.get('/me', authenticate, async (req: AuthRequest, res: Response) => {
   try {
-    const user = await prisma.user.findUnique({
+    const user = await (prisma.user as any).findUnique({
       where: { id: req.user!.userId },
-      select: { id: true, email: true, name: true, role: true, createdAt: true },
+      select: { id: true, email: true, username: true, name: true, role: true, createdAt: true },
     });
     if (!user) {
       res.status(404).json({ error: 'User not found' });
@@ -299,23 +300,25 @@ router.post(
     }
 
     try {
-      const exists = await prisma.user.findUnique({ where: { email } });
-      if (exists) {
-        res.status(409).json({ error: 'Email already registered' });
+      // Username is required — check uniqueness first
+      const usernameExists = await (prisma.user as any).findFirst({ where: { username } });
+      if (usernameExists) {
+        res.status(409).json({ error: 'Username already taken' });
         return;
       }
 
-      if (username) {
-        const usernameExists = await (prisma.user as any).findFirst({ where: { username } });
-        if (usernameExists) {
-          res.status(409).json({ error: 'Username already taken' });
+      // Email is optional — only check uniqueness when provided
+      if (email) {
+        const emailExists = await prisma.user.findUnique({ where: { email } });
+        if (emailExists) {
+          res.status(409).json({ error: 'Email already registered' });
           return;
         }
       }
 
       const passwordHash = await hashPassword(password);
       const user = await (prisma.user as any).create({
-        data: { email, username: username ?? null, passwordHash, name, role },
+        data: { email: email ?? null, username, passwordHash, name, role },
         select: { id: true, email: true, username: true, name: true, role: true, createdAt: true },
       });
 
@@ -368,6 +371,7 @@ router.put(
         return;
       }
 
+      // Email uniqueness: check only when setting a non-null new value different from current
       if (email && email !== target.email) {
         const emailExists = await prisma.user.findUnique({ where: { email } });
         if (emailExists) {
@@ -376,7 +380,8 @@ router.put(
         }
       }
 
-      if (username !== undefined && username !== null) {
+      // Username uniqueness: check when updating (username cannot be cleared)
+      if (username !== undefined) {
         const usernameExists = await (prisma.user as any).findFirst({ where: { username, NOT: { id } } });
         if (usernameExists) {
           res.status(409).json({ error: 'Username already taken' });
@@ -386,7 +391,7 @@ router.put(
 
       const data: Record<string, any> = {};
       if (name !== undefined) data.name = name;
-      if (email !== undefined) data.email = email;
+      if (email !== undefined) data.email = email ?? null;  // allow clearing email to null
       if (username !== undefined) data.username = username;
       if (role !== undefined) data.role = role;
       if (isActive !== undefined) {

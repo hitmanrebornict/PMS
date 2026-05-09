@@ -71,10 +71,10 @@ export default function LoginPage() {
           </h1>
 
           <form onSubmit={handleSubmit} className="space-y-5">
-            {/* Email or Username */}
+            {/* Username or Email */}
             <div>
               <label className="block font-body text-sm font-medium text-on-surface/70 mb-1.5">
-                Email or Username
+                Username or Email
               </label>
               <input
                 type="text"

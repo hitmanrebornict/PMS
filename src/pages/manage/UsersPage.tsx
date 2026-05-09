@@ -98,10 +98,14 @@ export function UsersPage() {
   const [search, setSearch] = useState('');
 
   const filteredUsers = search
-    ? users.filter(u =>
-        u.name.toLowerCase().includes(search.toLowerCase()) ||
-        u.email.toLowerCase().includes(search.toLowerCase())
-      )
+    ? users.filter(u => {
+        const q = search.toLowerCase();
+        return (
+          u.name.toLowerCase().includes(q) ||
+          u.username.toLowerCase().includes(q) ||
+          (u.email ?? '').toLowerCase().includes(q)
+        );
+      })
     : users;
 
   const openAdd = () => { setSelectedUser(null); setIsModalOpen(true); };
@@ -147,7 +151,7 @@ export function UsersPage() {
         <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
         <input
           type="text"
-          placeholder="Search by name or email..."
+          placeholder="Search by name or username..."
           value={search}
           onChange={e => setSearch(e.target.value)}
           className="w-full pl-9 pr-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -160,7 +164,7 @@ export function UsersPage() {
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200">
                 <th className="px-4 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Name</th>
-                <th className="px-4 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Email</th>
+                <th className="px-4 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Username / Email</th>
                 <th className="px-4 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Role</th>
                 <th className="px-4 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Status</th>
                 <th className="px-4 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Created</th>
@@ -183,7 +187,10 @@ export function UsersPage() {
                       </div>
                     </div>
                   </td>
-                  <td className="px-4 py-4 text-slate-600 text-sm">{user.email}</td>
+                  <td className="px-4 py-4 text-sm">
+                    <div className="font-medium text-slate-800">{user.username}</div>
+                    {user.email && <div className="text-xs text-slate-400">{user.email}</div>}
+                  </td>
                   <td className="px-4 py-4">
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${ROLE_COLORS[user.role] ?? 'bg-slate-100 text-slate-600'}`}>
                       {ROLE_LABELS[user.role] ?? user.role}

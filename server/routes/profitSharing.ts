@@ -51,7 +51,7 @@ router.get('/shareable-users', authenticate, requireProfitSharingOrViewer, async
   try {
     const users: any[] = await (prisma.user.findMany as any)({
       where: { isActive: true },
-      select: { id: true, name: true, email: true },
+      select: { id: true, name: true, username: true, email: true },
       orderBy: { name: 'asc' },
     });
     res.json(users);
@@ -112,7 +112,7 @@ router.get('/:unitId/shares', authenticate, requireProfitSharingOrViewer, async 
     res.json(shares.map(s => ({
       userId: s.userId,
       userName: s.user.name,
-      userEmail: s.user.email,
+      userEmail: s.user.email ?? null,
       percentage: Number(s.percentage),
     })));
   } catch (err) {
@@ -178,7 +178,7 @@ router.put('/:unitId/shares', authenticate, requireManager, async (req: AuthRequ
     res.json(updated.map(s => ({
       userId: s.userId,
       userName: s.user.name,
-      userEmail: s.user.email,
+      userEmail: s.user.email ?? null,
       percentage: Number(s.percentage),
     })));
   } catch (err) {
