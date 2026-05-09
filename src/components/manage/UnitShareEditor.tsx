@@ -46,7 +46,7 @@ export const UnitShareEditor: React.FC<UnitShareEditorProps> = ({ unitId, onSave
   useEffect(() => { loadData(); }, [loadData]);
 
   const total = rows.reduce((sum, r) => sum + (parseFloat(r.percentage) || 0), 0);
-  const isValid = rows.length === 0 || Math.abs(total - 100) <= 0.01;
+  const isValid = rows.length === 0 || total <= 100.01;
   const assignedIds = new Set(rows.map(r => r.userId));
 
   const addRow = () => {
@@ -82,8 +82,8 @@ export const UnitShareEditor: React.FC<UnitShareEditorProps> = ({ unitId, onSave
         }
       }
       const t = rows.reduce((sum, r) => sum + (parseFloat(r.percentage) || 0), 0);
-      if (Math.abs(t - 100) > 0.01) {
-        setError(`Percentages must total 100% (currently ${t.toFixed(2)}%).`);
+      if (t > 100.01) {
+        setError(`Total percentage cannot exceed 100% (currently ${t.toFixed(2)}%).`);
         return;
       }
     }
@@ -146,19 +146,31 @@ export const UnitShareEditor: React.FC<UnitShareEditorProps> = ({ unitId, onSave
           const otherIds = new Set(rows.filter((_, i) => i !== idx).map(r => r.userId));
           const available = shareableUsers.filter(u => !otherIds.has(u.id));
           return (
-            <div key={idx} className="flex items-center gap-2">
-              <select
-                value={row.userId}
-                onChange={e => updateUserId(idx, e.target.value)}
-                className="flex-1 px-3 py-1.5 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-indigo-500 outline-none bg-white"
-              >
-                {available.map(u => (
-                  <option key={u.id} value={u.id}>
-                    {u.username}{u.email ? ` (${u.email})` : ''}
-                  </option>
-                ))}
-              </select>
+            <div key={idx} className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-2 min-w-0">
+              {/* Row 1 (mobile): user dropdown + remove button */}
+              <div className="flex items-center gap-2 min-w-0">
+                <select
+                  value={row.userId}
+                  onChange={e => updateUserId(idx, e.target.value)}
+                  className="flex-1 min-w-0 px-3 py-1.5 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-indigo-500 outline-none bg-white overflow-hidden"
+                >
+                  {available.map(u => (
+                    <option key={u.id} value={u.id}>
+                      {u.username}{u.email ? ` (${u.email})` : ''}
+                    </option>
+                  ))}
+                </select>
+                {/* Remove button — mobile only */}
+                <button
+                  onClick={() => removeRow(idx)}
+                  className="sm:hidden p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded transition-colors"
+                >
+                  <X size={15} />
+                </button>
+              </div>
+              {/* Row 2 (mobile): percentage field */}
               <div className="flex items-center gap-1">
+                <span className="text-xs text-slate-500 sm:hidden">Share:</span>
                 <input
                   type="number"
                   step="0.01"
@@ -166,14 +178,15 @@ export const UnitShareEditor: React.FC<UnitShareEditorProps> = ({ unitId, onSave
                   max="100"
                   value={row.percentage}
                   onChange={e => updatePercentage(idx, e.target.value)}
-                  className="w-20 px-2 py-1.5 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-indigo-500 outline-none text-right"
+                  className="w-24 sm:w-20 px-2 py-1.5 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-indigo-500 outline-none text-right"
                   placeholder="0.00"
                 />
                 <span className="text-sm text-slate-500">%</span>
               </div>
+              {/* Remove button — desktop only */}
               <button
                 onClick={() => removeRow(idx)}
-                className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded transition-colors"
+                className="hidden sm:block p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded transition-colors"
               >
                 <X size={15} />
               </button>
@@ -184,7 +197,7 @@ export const UnitShareEditor: React.FC<UnitShareEditorProps> = ({ unitId, onSave
         {rows.length > 0 && (
           <div className={`flex items-center justify-end gap-1 text-xs font-medium pt-1 ${isValid ? 'text-emerald-600' : 'text-rose-500'}`}>
             Total: {total.toFixed(2)}%
-            {isValid ? ' ✓' : ' (must equal 100%)'}
+            {isValid ? ' ✓' : ' (exceeds 100%)'}
           </div>
         )}
       </div>
