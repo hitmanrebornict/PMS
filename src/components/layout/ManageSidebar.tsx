@@ -1,11 +1,11 @@
 
-import { Building2, Users, CalendarDays, LayoutDashboard, X, Home, Car, FileText, UserCog, Receipt, TrendingUp, Share2, Briefcase, PiggyBank, KeyRound, BarChart2 } from 'lucide-react';
+import { Building2, Users, CalendarDays, LayoutDashboard, X, Home, Car, FileText, UserCog, Receipt, TrendingUp, Share2, Briefcase, PiggyBank, KeyRound, BarChart2, PieChart } from 'lucide-react';
 
 import { motion, AnimatePresence } from 'motion/react';
 import { SidebarItem } from '../common/SidebarItem';
 import { useAuth } from '../../contexts/AuthContext';
 
-export type ActiveTab = 'dashboard' | 'masterProperties' | 'units' | 'carparks' | 'timeline' | 'leases' | 'customers' | 'companies' | 'dataSources' | 'expenses' | 'profit' | 'investments' | 'investmentProfit' | 'ownerAgreements' | 'users';
+export type ActiveTab = 'dashboard' | 'masterProperties' | 'units' | 'carparks' | 'timeline' | 'leases' | 'customers' | 'companies' | 'dataSources' | 'expenses' | 'profit' | 'investments' | 'investmentProfit' | 'ownerAgreements' | 'profitSharing' | 'users';
 
 interface ManageSidebarProps {
   activeTab: ActiveTab;
@@ -17,6 +17,7 @@ interface ManageSidebarProps {
 export function ManageSidebar({ activeTab, setActiveTab, isOpen, setIsOpen }: ManageSidebarProps) {
   const { user } = useAuth();
   const isSuperAdmin = user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN';
+  const isProfitSharingRole = user?.role === 'PROFIT_SHARING';
 
   const navigate = (tab: ActiveTab) => {
     setActiveTab(tab);
@@ -61,28 +62,36 @@ export function ManageSidebar({ activeTab, setActiveTab, isOpen, setIsOpen }: Ma
 
         {/* Nav Items */}
         <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-          <SidebarItem icon={<LayoutDashboard size={20} />} label="Dashboard"     active={activeTab === 'dashboard'}   onClick={() => navigate('dashboard')} />
+          {!isProfitSharingRole && (
+            <SidebarItem icon={<LayoutDashboard size={20} />} label="Dashboard" active={activeTab === 'dashboard'} onClick={() => navigate('dashboard')} />
+          )}
 
-          <div className="pt-3 pb-1 px-3">
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Asset Management</p>
-          </div>
-          <SidebarItem icon={<Building2 size={20} />}       label="Master Properties" active={activeTab === 'masterProperties'} onClick={() => navigate('masterProperties')} />
-          <SidebarItem icon={<Home size={20} />}            label="Units"         active={activeTab === 'units'}       onClick={() => navigate('units')} />
-          <SidebarItem icon={<Car size={20} />}             label="Carparks"      active={activeTab === 'carparks'}    onClick={() => navigate('carparks')} />
-          <SidebarItem icon={<CalendarDays size={20} />}   label="Timeline"      active={activeTab === 'timeline'}   onClick={() => navigate('timeline')} />
-          <SidebarItem icon={<FileText size={20} />}       label="Leases"        active={activeTab === 'leases'}     onClick={() => navigate('leases')} />
+          {!isProfitSharingRole && (
+            <>
+              <div className="pt-3 pb-1 px-3">
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Asset Management</p>
+              </div>
+              <SidebarItem icon={<Building2 size={20} />}     label="Master Properties" active={activeTab === 'masterProperties'} onClick={() => navigate('masterProperties')} />
+              <SidebarItem icon={<Home size={20} />}          label="Units"         active={activeTab === 'units'}       onClick={() => navigate('units')} />
+              <SidebarItem icon={<Car size={20} />}           label="Carparks"      active={activeTab === 'carparks'}    onClick={() => navigate('carparks')} />
+              <SidebarItem icon={<CalendarDays size={20} />}  label="Timeline"      active={activeTab === 'timeline'}   onClick={() => navigate('timeline')} />
+              <SidebarItem icon={<FileText size={20} />}      label="Leases"        active={activeTab === 'leases'}     onClick={() => navigate('leases')} />
 
-          <div className="pt-3 pb-1 px-3">
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">People</p>
-          </div>
-          <SidebarItem icon={<Users size={20} />}           label="Customers"     active={activeTab === 'customers'}   onClick={() => navigate('customers')} />
-          <SidebarItem icon={<Briefcase size={20} />}      label="Companies"     active={activeTab === 'companies'}   onClick={() => navigate('companies')} />
-          <SidebarItem icon={<Share2 size={20} />}         label="Data Sources"  active={activeTab === 'dataSources'} onClick={() => navigate('dataSources')} />
-          <SidebarItem icon={<Receipt size={20} />}        label="Expenses"      active={activeTab === 'expenses'}    onClick={() => navigate('expenses')} />
-          <SidebarItem icon={<TrendingUp size={20} />}    label="Profit"        active={activeTab === 'profit'}      onClick={() => navigate('profit')} />
-          <SidebarItem icon={<PiggyBank size={20} />}     label="Investments"      active={activeTab === 'investments'}      onClick={() => navigate('investments')} />
-          <SidebarItem icon={<BarChart2 size={20} />}    label="Investment ROI"   active={activeTab === 'investmentProfit'} onClick={() => navigate('investmentProfit')} />
-          <SidebarItem icon={<KeyRound size={20} />}     label="Owner Agreements" active={activeTab === 'ownerAgreements'} onClick={() => navigate('ownerAgreements')} />
+              <div className="pt-3 pb-1 px-3">
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">People</p>
+              </div>
+              <SidebarItem icon={<Users size={20} />}         label="Customers"     active={activeTab === 'customers'}   onClick={() => navigate('customers')} />
+              <SidebarItem icon={<Briefcase size={20} />}     label="Companies"     active={activeTab === 'companies'}   onClick={() => navigate('companies')} />
+              <SidebarItem icon={<Share2 size={20} />}        label="Data Sources"  active={activeTab === 'dataSources'} onClick={() => navigate('dataSources')} />
+              <SidebarItem icon={<Receipt size={20} />}       label="Expenses"      active={activeTab === 'expenses'}    onClick={() => navigate('expenses')} />
+              <SidebarItem icon={<TrendingUp size={20} />}    label="Profit"        active={activeTab === 'profit'}      onClick={() => navigate('profit')} />
+              <SidebarItem icon={<PiggyBank size={20} />}     label="Investments"      active={activeTab === 'investments'}      onClick={() => navigate('investments')} />
+              <SidebarItem icon={<BarChart2 size={20} />}     label="Investment ROI"   active={activeTab === 'investmentProfit'} onClick={() => navigate('investmentProfit')} />
+              <SidebarItem icon={<KeyRound size={20} />}      label="Owner Agreements" active={activeTab === 'ownerAgreements'} onClick={() => navigate('ownerAgreements')} />
+            </>
+          )}
+
+          <SidebarItem icon={<PieChart size={20} />} label="Profit Sharing" active={activeTab === 'profitSharing'} onClick={() => navigate('profitSharing')} />
 
           {isSuperAdmin && (
             <>
@@ -94,7 +103,15 @@ export function ManageSidebar({ activeTab, setActiveTab, isOpen, setIsOpen }: Ma
         </nav>
 
         {/* User Footer */}
-        <div className="p-4 border-t border-slate-100">
+        <div className="p-4 border-t border-slate-100 space-y-2">
+          <a
+            href="https://ms1033.securen.net"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-center w-full px-3 py-2 rounded-lg text-xs font-medium text-indigo-600 bg-indigo-50 hover:bg-indigo-100 transition-colors"
+          >
+            Email
+          </a>
           <div className="flex items-center gap-3 p-2 rounded-lg bg-slate-50">
             <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center text-slate-600 font-bold">
               AD

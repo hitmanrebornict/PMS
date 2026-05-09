@@ -10,7 +10,7 @@ export default function LoginPage() {
   const location = useLocation();
   const from = (location.state as any)?.from ?? '/manage';
 
-  const [email, setEmail] = useState('');
+  const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
@@ -21,7 +21,7 @@ export default function LoginPage() {
     setError('');
     setIsLoading(true);
     try {
-      await login(email, password);
+      await login(identifier, password);
       navigate(from, { replace: true });
     } catch (err: any) {
       setError(err.message || 'Login failed. Please try again.');
@@ -71,18 +71,18 @@ export default function LoginPage() {
           </h1>
 
           <form onSubmit={handleSubmit} className="space-y-5">
-            {/* Email */}
+            {/* Email or Username */}
             <div>
               <label className="block font-body text-sm font-medium text-on-surface/70 mb-1.5">
-                Email address
+                Email or Username
               </label>
               <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                type="text"
+                value={identifier}
+                onChange={(e) => setIdentifier(e.target.value)}
                 required
-                autoComplete="email"
-                placeholder="you@versahome.com.my"
+                autoComplete="username"
+                placeholder="email or username"
                 className="w-full px-4 py-2.5 rounded-[0.375rem] border font-body text-sm text-on-surface bg-surface placeholder:text-on-surface/30 outline-none transition-all focus:ring-2 focus:ring-primary/30 focus:border-primary"
                 style={{ borderColor: 'var(--color-outline-variant)' }}
               />
@@ -151,9 +151,19 @@ export default function LoginPage() {
           </form>
         </div>
 
-        <p className="text-center font-body text-xs text-on-surface/30 mt-6">
-          &copy; {new Date().getFullYear()} VersaHome. All rights reserved.
-        </p>
+        <div className="flex flex-col items-center gap-3 mt-6">
+          <a
+            href="https://ms1033.securen.net"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-body text-xs text-primary hover:opacity-70 transition-opacity"
+          >
+            Email
+          </a>
+          <p className="text-center font-body text-xs text-on-surface/30">
+            &copy; {new Date().getFullYear()} VersaHome. All rights reserved.
+          </p>
+        </div>
       </motion.div>
     </div>
   );

@@ -8,6 +8,7 @@ const ROLE_LABELS: Record<string, string> = {
   ADMIN: 'Admin',
   MANAGER: 'Manager',
   VIEWER: 'Viewer',
+  PROFIT_SHARING: 'Profit Sharing',
 };
 
 const ROLE_COLORS: Record<string, string> = {
@@ -15,6 +16,7 @@ const ROLE_COLORS: Record<string, string> = {
   ADMIN: 'bg-indigo-100 text-indigo-700',
   MANAGER: 'bg-blue-100 text-blue-700',
   VIEWER: 'bg-slate-100 text-slate-600',
+  PROFIT_SHARING: 'bg-emerald-100 text-emerald-700',
 };
 
 export function UsersPage() {
@@ -49,7 +51,7 @@ export function UsersPage() {
     };
 
     if (selectedUser) {
-      const body: Partial<UserFormData> = { name: data.name, email: data.email, role: data.role, isActive: data.isActive };
+      const body: Partial<UserFormData> = { name: data.name, email: data.email, username: data.username, role: data.role, isActive: data.isActive };
       if (data.password) body.password = data.password;
       const res = await fetch(`/api/auth/users/${selectedUser.id}`, {
         method: 'PUT',

@@ -5,8 +5,9 @@ import { Modal } from '../common/Modal';
 export interface SystemUser {
   id: string;
   email: string;
+  username?: string | null;
   name: string;
-  role: 'SUPER_ADMIN' | 'ADMIN' | 'MANAGER' | 'VIEWER';
+  role: 'SUPER_ADMIN' | 'ADMIN' | 'MANAGER' | 'VIEWER' | 'PROFIT_SHARING';
   isActive: boolean;
   createdAt: string;
 }
@@ -14,8 +15,9 @@ export interface SystemUser {
 export interface UserFormData {
   name: string;
   email: string;
+  username?: string | null;
   password?: string;
-  role: 'SUPER_ADMIN' | 'ADMIN' | 'MANAGER' | 'VIEWER';
+  role: 'SUPER_ADMIN' | 'ADMIN' | 'MANAGER' | 'VIEWER' | 'PROFIT_SHARING';
   isActive: boolean;
 }
 
@@ -31,6 +33,7 @@ const ROLES: Array<{ value: SystemUser['role']; label: string }> = [
   { value: 'ADMIN', label: 'Admin' },
   { value: 'MANAGER', label: 'Manager' },
   { value: 'VIEWER', label: 'Viewer' },
+  { value: 'PROFIT_SHARING', label: 'Profit Sharing (restricted)' },
 ];
 
 export function UserModal({ isOpen, onClose, onSubmit, selectedUser }: UserModalProps) {
@@ -49,9 +52,11 @@ export function UserModal({ isOpen, onClose, onSubmit, selectedUser }: UserModal
       return;
     }
 
+    const usernameRaw = (fd.get('username') as string).trim();
     const data: UserFormData = {
       name: fd.get('name') as string,
       email: fd.get('email') as string,
+      username: usernameRaw || null,
       role: fd.get('role') as SystemUser['role'],
       isActive: fd.get('isActive') === 'true',
     };
@@ -107,6 +112,20 @@ export function UserModal({ isOpen, onClose, onSubmit, selectedUser }: UserModal
             className="w-full px-4 py-2 rounded-lg border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
             placeholder="e.g. john@versahome.com"
           />
+        </div>
+
+        {/* Username */}
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1">
+            Username <span className="text-slate-400 font-normal">(optional)</span>
+          </label>
+          <input
+            name="username"
+            defaultValue={selectedUser?.username ?? ''}
+            className="w-full px-4 py-2 rounded-lg border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
+            placeholder="e.g. johndoe"
+          />
+          <p className="mt-1 text-xs text-slate-400">Letters, numbers, underscores only. Used for login.</p>
         </div>
 
         {/* Password */}

@@ -74,6 +74,20 @@ export function UnitModal({ isOpen, onClose, onSubmit, selectedUnit, properties 
             />
           </div>
           <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Guarantee Fee (MYR)</label>
+            <input
+              name="guaranteeFee"
+              type="number"
+              step="0.01"
+              min="0"
+              defaultValue={selectedUnit?.guaranteeFee ?? ''}
+              className="w-full px-4 py-2 rounded-lg border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
+              placeholder="e.g. 2000.00"
+            />
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">Status</label>
             <select
               name="status"

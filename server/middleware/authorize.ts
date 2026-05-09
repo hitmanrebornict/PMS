@@ -34,3 +34,17 @@ export const requireViewer     = authorize('VIEWER');
 export const requireManager    = authorize('MANAGER');
 export const requireAdmin      = authorize('ADMIN');
 export const requireSuperAdmin = authorize('SUPER_ADMIN');
+
+// Allows PROFIT_SHARING role (outside the hierarchy) OR any role with VIEWER+ level
+export function requireProfitSharingOrViewer(req: AuthRequest, res: Response, next: NextFunction) {
+  if (!req.user) {
+    res.status(401).json({ error: 'Not authenticated' });
+    return;
+  }
+  const role = req.user.role;
+  if (role === 'PROFIT_SHARING' || (ROLE_HIERARCHY[role] ?? 0) >= ROLE_HIERARCHY.VIEWER) {
+    next();
+  } else {
+    res.status(403).json({ error: 'Insufficient permissions' });
+  }
+}

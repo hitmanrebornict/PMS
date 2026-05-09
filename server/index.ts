@@ -23,6 +23,7 @@ import investmentsRouter from './routes/investments.js';
 import ownersRouter from './routes/owners.js';
 import ownerAgreementsRouter from './routes/ownerAgreements.js';
 import investmentAnalysisRouter from './routes/investmentAnalysis.js';
+import profitSharingRouter from './routes/profitSharing.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -87,6 +88,7 @@ app.use('/api/investments', investmentsRouter);
 app.use('/api/owners', ownersRouter);
 app.use('/api/owner-agreements', ownerAgreementsRouter);
 app.use('/api/investment-analysis', investmentAnalysisRouter);
+app.use('/api/profit-sharing', profitSharingRouter);
 
 // Health check
 app.get('/api/health', (_req, res) => {

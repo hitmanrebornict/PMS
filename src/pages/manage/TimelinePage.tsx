@@ -18,7 +18,17 @@ function formatDateShort(date: Date): string {
 }
 
 function toDateStr(date: Date): string {
-  return date.toISOString().split('T')[0];
+  const yyyy = date.getFullYear();
+  const mm = String(date.getMonth() + 1).padStart(2, '0');
+  const dd = String(date.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+// Parse a server date string ("2026-05-15T00:00:00.000Z") as local calendar midnight,
+// so it matches the local-midnight dates used by the view grid.
+function parseCalendarDate(dateStr: string): Date {
+  const [yyyy, mm, dd] = dateStr.substring(0, 10).split('-').map(Number);
+  return new Date(yyyy, mm - 1, dd);
 }
 
 function getToday(): Date {
@@ -110,8 +120,8 @@ export function TimelinePage({ onBookAsset }: TimelinePageProps) {
     const dateStart = date.getTime();
     const dateEnd = addDays(date, 1).getTime();
     for (const lease of leases) {
-      const ls = new Date(lease.startDate).getTime();
-      const le = new Date(lease.endDate).getTime();
+      const ls = parseCalendarDate(lease.startDate).getTime();
+      const le = parseCalendarDate(lease.endDate).getTime();
       if (ls < dateEnd && le > dateStart) return lease;
     }
     return null;
@@ -119,8 +129,8 @@ export function TimelinePage({ onBookAsset }: TimelinePageProps) {
 
   // Calculate lease pill position within the visible range
   function getLeaseSpan(lease: TimelineLease, dates: Date[]): { startCol: number; span: number } | null {
-    const ls = new Date(lease.startDate).getTime();
-    const le = new Date(lease.endDate).getTime();
+    const ls = parseCalendarDate(lease.startDate).getTime();
+    const le = parseCalendarDate(lease.endDate).getTime();
     const rangeStart = dates[0].getTime();
     const rangeEnd = addDays(dates[dates.length - 1], 1).getTime();
 

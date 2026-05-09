@@ -29,6 +29,7 @@ export interface Unit {
   unitNumber: string;
   type: UnitType;
   suggestedRentalPrice: number;
+  guaranteeFee?: number | null;
   status: AssetStatus;
 }
 
@@ -223,6 +224,8 @@ export interface Lease {
   carpark?: { id: string; carparkNumber: string } | null;
   deposit?: LeaseDepositInfo | null;
   _count: { invoices: number };
+  hasOverdueInvoice?: boolean;
+  overdueInvoiceCount?: number;
 }
 
 export interface LeaseDetail extends Omit<Lease, 'customer' | 'company'> {
@@ -405,6 +408,76 @@ export interface ProfitSummary {
   properties: ProfitProperty[];
   carparkIncome: number;
   carparkRows: ProfitCarparkRow[];
+}
+
+// ─── Profit Sharing ───────────────────────────────────────────────────────────
+
+export interface UnitShare {
+  userId: string;
+  userName: string;
+  userEmail: string;
+  percentage: number;
+}
+
+export interface ShareableUser {
+  id: string;
+  name: string;
+  email: string;
+}
+
+export interface ProfitSharingAllocation {
+  userId: string;
+  userName: string;
+  percentage: number;
+  amount: number;
+}
+
+export interface ShareProjection extends UnitShare {
+  projectedAmount: number;
+}
+
+export interface ProfitSharingUnit {
+  id: string;
+  unitNumber: string;
+  propertyName: string;
+  type: UnitType;
+  guaranteeFee: number | null;
+  lastCutoffMonth: number | null;
+  lastCutoffYear: number | null;
+  shareCount?: number;
+}
+
+export interface ProfitSharingCalculation {
+  unitId: string;
+  unitNumber: string;
+  propertyName: string;
+  month: number;
+  year: number;
+  guaranteeFee: number;
+  invoices: ProfitInvoiceRow[];
+  expenses: ProfitExpenseRow[];
+  totalSales: number;
+  totalExpenses: number;
+  netProfit: number;
+  finalProfit: number;
+  shares: ShareProjection[];
+  savedRecord: ProfitSharingRecord | null;
+}
+
+export interface ProfitSharingRecord {
+  id: string;
+  unitId: string;
+  month: number;
+  year: number;
+  guaranteeFeeSnapshot: number;
+  totalSales: number;
+  totalExpenses: number;
+  netProfit: number;
+  finalProfit: number;
+  notes?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  allocations?: ProfitSharingAllocation[];
 }
 
 // ─── Investment Analysis ──────────────────────────────────────────────────────

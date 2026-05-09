@@ -234,7 +234,7 @@ export function LeaseDetailModal({ isOpen, onClose, leaseId, onAction }: LeaseDe
 
   // ── Lease edit state ──────────────────────────────────────────────────────
   const [editingLease, setEditingLease] = useState(false);
-  const [leaseEditForm, setLeaseEditForm] = useState({ unitPrice: '', endDate: '', notes: '' });
+  const [leaseEditForm, setLeaseEditForm] = useState({ unitPrice: '', startDate: '', endDate: '', notes: '' });
 
   // ── Invoice edit state ────────────────────────────────────────────────────
   const [editingInvoiceId, setEditingInvoiceId] = useState<string | null>(null);
@@ -342,6 +342,7 @@ export function LeaseDetailModal({ isOpen, onClose, leaseId, onAction }: LeaseDe
     if (!lease) return;
     setLeaseEditForm({
       unitPrice: String(lease.unitPrice),
+      startDate: toInputDate(lease.startDate),
       endDate: toInputDate(lease.endDate),
       notes: lease.notes || '',
     });
@@ -356,6 +357,7 @@ export function LeaseDetailModal({ isOpen, onClose, leaseId, onAction }: LeaseDe
         method: 'PATCH',
         body: JSON.stringify({
           unitPrice: Number(leaseEditForm.unitPrice),
+          startDate: leaseEditForm.startDate,
           endDate: leaseEditForm.endDate,
           notes: leaseEditForm.notes,
         }),
@@ -577,6 +579,17 @@ export function LeaseDetailModal({ isOpen, onClose, leaseId, onAction }: LeaseDe
                         className="w-full border border-slate-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                       />
                     </div>
+                    <div>{/* spacer */}</div>
+                    <div>
+                      <label className="block text-xs text-slate-500 mb-1">Start Date</label>
+                      <input
+                        type="date"
+                        lang="en-GB"
+                        value={leaseEditForm.startDate}
+                        onChange={e => setLeaseEditForm(f => ({ ...f, startDate: e.target.value }))}
+                        className="w-full border border-slate-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      />
+                    </div>
                     <div>
                       <label className="block text-xs text-slate-500 mb-1">End Date</label>
                       <input
@@ -597,6 +610,9 @@ export function LeaseDetailModal({ isOpen, onClose, leaseId, onAction }: LeaseDe
                       className="w-full border border-slate-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
                     />
                   </div>
+                  <p className="text-xs text-amber-600 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
+                    Changing dates or price will regenerate all unpaid invoices to match the new period.
+                  </p>
                   <div className="flex gap-2">
                     <button
                       onClick={handleSaveLease}
