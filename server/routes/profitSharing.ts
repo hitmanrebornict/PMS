@@ -131,11 +131,11 @@ router.put('/:unitId/shares', authenticate, requireManager, async (req: AuthRequ
   }
   const { shares } = parsed.data;
 
-  // Validate total = 100% (or empty = clear all)
+  // Validate total does not exceed 100% (partial allocation is allowed)
   if (shares.length > 0) {
     const total = shares.reduce((sum, s) => sum + s.percentage, 0);
-    if (Math.abs(total - 100) > 0.01) {
-      res.status(400).json({ error: `Percentages must sum to 100% (got ${total.toFixed(2)}%)` });
+    if (total > 100.01) {
+      res.status(400).json({ error: `Total percentage cannot exceed 100% (got ${total.toFixed(2)}%)` });
       return;
     }
   }

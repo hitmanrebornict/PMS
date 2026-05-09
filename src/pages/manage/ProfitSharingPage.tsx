@@ -170,98 +170,47 @@ export function ProfitSharingPage() {
         ) : filteredUnits.length === 0 ? (
           <div className="text-center py-12 text-slate-400">No units found</div>
         ) : (
-          <>
-            {/* ── Mobile card list ── */}
-            <div className="sm:hidden space-y-2">
-              {filteredUnits.map(u => (
-                <button
-                  key={u.id}
-                  onClick={() => handleSelectUnit(u)}
-                  className="w-full text-left bg-white rounded-xl border border-slate-200 px-4 py-3 hover:bg-slate-50 active:bg-slate-100 transition-colors"
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <div className="font-semibold text-slate-900 leading-tight">{u.unitNumber}</div>
-                      <div className="text-xs text-slate-500 mt-0.5">{u.propertyName} · {UNIT_TYPE_LABELS[u.type]}</div>
-                    </div>
-                    <ChevronRight size={16} className="text-slate-400 shrink-0 mt-0.5" />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {filteredUnits.map(u => (
+              <button
+                key={u.id}
+                onClick={() => handleSelectUnit(u)}
+                className="w-full text-left bg-white rounded-xl border border-slate-200 px-4 py-3 hover:bg-indigo-50 hover:border-indigo-200 active:bg-indigo-100 transition-colors"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="font-semibold text-slate-900 leading-tight">{u.unitNumber}</div>
+                    <div className="text-xs text-slate-500 mt-0.5 truncate">{u.propertyName}</div>
                   </div>
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {u.guaranteeFee != null && (
-                      <span className="text-xs bg-indigo-50 text-indigo-700 font-medium px-2 py-0.5 rounded-full">
-                        Fee: MYR {fmt(u.guaranteeFee)}
-                      </span>
-                    )}
-                    {(u.shareCount ?? 0) > 0 ? (
-                      <span className="text-xs bg-slate-100 text-slate-600 font-medium px-2 py-0.5 rounded-full">
-                        {u.shareCount} owner{u.shareCount !== 1 ? 's' : ''}
-                      </span>
-                    ) : (
-                      <span className="text-xs text-slate-300 px-2 py-0.5">No owners</span>
-                    )}
-                    {u.lastCutoffMonth && u.lastCutoffYear ? (
-                      <span className="text-xs bg-emerald-50 text-emerald-700 font-medium px-2 py-0.5 rounded-full">
-                        Last: {MONTH_NAMES[u.lastCutoffMonth - 1].slice(0, 3)} {u.lastCutoffYear}
-                      </span>
-                    ) : (
-                      <span className="text-xs text-slate-300 px-2 py-0.5">No cutoff</span>
-                    )}
-                  </div>
-                </button>
-              ))}
-            </div>
-
-            {/* ── Desktop table ── */}
-            <div className="hidden sm:block bg-white rounded-xl border border-slate-200 overflow-hidden">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="bg-slate-50 border-b border-slate-200">
-                    <th className="text-left px-4 py-3 font-semibold text-slate-600">Property</th>
-                    <th className="text-left px-4 py-3 font-semibold text-slate-600">Unit</th>
-                    <th className="text-left px-4 py-3 font-semibold text-slate-600">Type</th>
-                    <th className="text-right px-4 py-3 font-semibold text-slate-600">Guarantee Fee</th>
-                    <th className="text-center px-4 py-3 font-semibold text-slate-600">Owners</th>
-                    <th className="text-center px-4 py-3 font-semibold text-slate-600">Last Cutoff</th>
-                    <th className="px-4 py-3"></th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {filteredUnits.map(u => (
-                    <tr
-                      key={u.id}
-                      className="hover:bg-slate-50 cursor-pointer transition-colors"
-                      onClick={() => handleSelectUnit(u)}
-                    >
-                      <td className="px-4 py-3 text-slate-700">{u.propertyName}</td>
-                      <td className="px-4 py-3 font-medium text-slate-900">{u.unitNumber}</td>
-                      <td className="px-4 py-3 text-slate-500">{UNIT_TYPE_LABELS[u.type]}</td>
-                      <td className="px-4 py-3 text-right">
-                        {u.guaranteeFee != null
-                          ? <span className="font-medium text-slate-900">MYR {fmt(u.guaranteeFee)}</span>
-                          : <span className="text-slate-400">—</span>
-                        }
-                      </td>
-                      <td className="px-4 py-3 text-center">
-                        {(u.shareCount ?? 0) > 0
-                          ? <span className="inline-flex items-center gap-1 text-xs bg-indigo-50 text-indigo-700 font-medium px-2 py-0.5 rounded-full">{u.shareCount} owner{u.shareCount !== 1 ? 's' : ''}</span>
-                          : <span className="text-slate-300 text-xs">None</span>
-                        }
-                      </td>
-                      <td className="px-4 py-3 text-center text-slate-500">
-                        {u.lastCutoffMonth && u.lastCutoffYear
-                          ? `${MONTH_NAMES[u.lastCutoffMonth - 1]} ${u.lastCutoffYear}`
-                          : <span className="text-slate-300">None</span>
-                        }
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        <ChevronRight size={16} className="text-slate-400 inline" />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </>
+                  <ChevronRight size={16} className="text-slate-400 shrink-0 mt-0.5" />
+                </div>
+                <div className="flex flex-wrap gap-1.5 mt-2">
+                  <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">
+                    {UNIT_TYPE_LABELS[u.type]}
+                  </span>
+                  {u.guaranteeFee != null && (
+                    <span className="text-xs bg-indigo-50 text-indigo-700 font-medium px-2 py-0.5 rounded-full">
+                      Fee: MYR {fmt(u.guaranteeFee)}
+                    </span>
+                  )}
+                  {(u.shareCount ?? 0) > 0 ? (
+                    <span className="text-xs bg-emerald-50 text-emerald-700 font-medium px-2 py-0.5 rounded-full">
+                      {u.shareCount} owner{u.shareCount !== 1 ? 's' : ''}
+                    </span>
+                  ) : (
+                    <span className="text-xs text-slate-300 px-2 py-0.5">No owners</span>
+                  )}
+                  {u.lastCutoffMonth && u.lastCutoffYear ? (
+                    <span className="text-xs bg-amber-50 text-amber-700 font-medium px-2 py-0.5 rounded-full">
+                      Last: {MONTH_NAMES[u.lastCutoffMonth - 1].slice(0, 3)} {u.lastCutoffYear}
+                    </span>
+                  ) : (
+                    <span className="text-xs text-slate-300 px-2 py-0.5">No cutoff</span>
+                  )}
+                </div>
+              </button>
+            ))}
+          </div>
         )}
       </div>
     );
