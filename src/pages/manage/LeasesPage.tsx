@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { FileText, Search, X } from 'lucide-react';
+import { FileText, Search, X, AlertCircle } from 'lucide-react';
 import { Lease, LeaseStatusType, DepositStatusType } from '../../types';
 
 function WhatsAppIcon({ size = 14 }: { size?: number }) {
@@ -71,12 +71,23 @@ function LeaseTable({ rows, onViewDetail }: { rows: Lease[]; onViewDetail: (l: L
               <tr
                 key={lease.id}
                 onClick={() => onViewDetail(lease)}
-                className="border-b border-slate-50 hover:bg-slate-50 cursor-pointer transition-colors"
+                className={`border-b cursor-pointer transition-colors ${
+                  lease.hasOverdueInvoice
+                    ? 'bg-red-50 hover:bg-red-100 border-red-100'
+                    : 'border-slate-50 hover:bg-slate-50'
+                }`}
               >
                 <td className="px-4 py-3 font-medium text-slate-900">
-                  {lease.unit
-                    ? `${lease.unit.unitNumber} — ${lease.unit.property.name}`
-                    : `Carpark ${lease.carpark?.carparkNumber}`}
+                  <div className="flex items-center gap-2">
+                    {lease.hasOverdueInvoice && (
+                      <AlertCircle size={15} className="text-red-500 shrink-0" title="Has overdue invoice(s)" />
+                    )}
+                    <span>
+                      {lease.unit
+                        ? `${lease.unit.unitNumber} — ${lease.unit.property.name}`
+                        : `Carpark ${lease.carpark?.carparkNumber}`}
+                    </span>
+                  </div>
                 </td>
                 <td className="px-4 py-3 text-slate-600">
                   {lease.company ? (
@@ -142,9 +153,17 @@ function LeaseTable({ rows, onViewDetail }: { rows: Lease[]; onViewDetail: (l: L
                   )}
                 </td>
                 <td className="px-4 py-3 text-center">
-                  <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold ${statusColors[lease.status]}`}>
-                    {lease.status}
-                  </span>
+                  <div className="flex flex-col items-center gap-1">
+                    <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold ${statusColors[lease.status]}`}>
+                      {lease.status}
+                    </span>
+                    {lease.hasOverdueInvoice && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-700">
+                        <AlertCircle size={10} />
+                        {lease.overdueInvoiceCount} overdue
+                      </span>
+                    )}
+                  </div>
                 </td>
               </tr>
             ))}

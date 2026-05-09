@@ -309,6 +309,7 @@ export function LeaseBookingModal({ isOpen, onClose, onSuccess, dataSources = []
   };
 
   const inputClass = 'w-full px-4 py-2 rounded-lg border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none';
+  const numberInputClass = `${inputClass} [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`;
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="New Lease Booking">
@@ -649,7 +650,7 @@ export function LeaseBookingModal({ isOpen, onClose, onSuccess, dataSources = []
               value={unitPrice}
               onChange={(e) => setUnitPrice(e.target.value)}
               required
-              className={inputClass}
+              className={numberInputClass}
               placeholder="0.00"
             />
           </div>
@@ -662,7 +663,7 @@ export function LeaseBookingModal({ isOpen, onClose, onSuccess, dataSources = []
               step="0.01"
               value={promotionAmount}
               onChange={(e) => setPromotionAmount(e.target.value)}
-              className={inputClass}
+              className={numberInputClass}
               placeholder="0.00"
             />
           </div>
@@ -685,7 +686,7 @@ export function LeaseBookingModal({ isOpen, onClose, onSuccess, dataSources = []
               step="0.01"
               value={depositAmount}
               onChange={(e) => setDepositAmount(e.target.value)}
-              className={inputClass}
+              className={numberInputClass}
               placeholder="0.00"
             />
           </div>
@@ -699,7 +700,7 @@ export function LeaseBookingModal({ isOpen, onClose, onSuccess, dataSources = []
                 step="0.01"
                 value={cleaningFee}
                 onChange={(e) => setCleaningFee(e.target.value)}
-                className={inputClass}
+                className={numberInputClass}
                 placeholder="0.00"
               />
             </div>

@@ -15,6 +15,7 @@ enum Role {
   ADMIN
   MANAGER
   VIEWER
+  PROFIT_SHARING
 }
 
 enum UnitType {
@@ -99,6 +100,7 @@ enum OwnerAgreementStatus {
 model User {
   id                  String    @id @default(uuid())
   email               String    @unique
+  username            String?   @unique
   passwordHash        String
   name                String
   role                Role      @default(VIEWER)
@@ -108,9 +110,11 @@ model User {
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
 
-  refreshTokens RefreshToken[]
-  auditLogs     AuditLog[]
-  uploadedFiles File[]
+  refreshTokens            RefreshToken[]
+  auditLogs                AuditLog[]
+  uploadedFiles            File[]
+  unitShares               UnitShare[]
+  profitSharingAllocations ProfitSharingAllocation[]
 
   @@map("users")
 }
@@ -203,7 +207,7 @@ model Customer {
   phoneOther     String?
   icPassport     String      @unique
   email          String?
-  currentAddress String
+  currentAddress String?
   wechatId       String?
   whatsappNumber String?
   remark         String?
@@ -241,16 +245,19 @@ model Unit {
   unitNumber           String
   type                 UnitType    @default(OTHER)
   suggestedRentalPrice Decimal     @db.Decimal(10, 2)
+  guaranteeFee         Decimal?    @db.Decimal(10, 2)
   status               AssetStatus @default(VACANT)
   isActive             Boolean     @default(true)
   createdAt            DateTime    @default(now())
   updatedAt            DateTime    @updatedAt
 
-  property         MasterProperty   @relation(fields: [propertyId], references: [id], onDelete: Cascade)
-  leases           LeaseAgreement[]
-  expenses         Expense[]
-  investments      Investment[]
-  ownerAgreements  OwnerAgreement[]
+  property              MasterProperty        @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  leases                LeaseAgreement[]
+  expenses              Expense[]
+  investments           Investment[]
+  ownerAgreements       OwnerAgreement[]
+  profitSharingRecords  ProfitSharingRecord[]
+  unitShares            UnitShare[]
 
   @@unique([propertyId, unitNumber])
   @@map("units")
@@ -437,6 +444,59 @@ model Investment {
   unit     Unit     @relation(fields: [unitId], references: [id], onDelete: Restrict)
 
   @@map("investments")
+}
+
+// ─── Profit Sharing ───────────────────────────────────────────────────────────
+
+model ProfitSharingRecord {
+  id                   String   @id @default(uuid())
+  unitId               String
+  month                Int
+  year                 Int
+  guaranteeFeeSnapshot Decimal  @db.Decimal(10, 2)
+  totalSales           Decimal  @db.Decimal(10, 2)
+  totalExpenses        Decimal  @db.Decimal(10, 2)
+  netProfit            Decimal  @db.Decimal(10, 2)
+  finalProfit          Decimal  @db.Decimal(10, 2)
+  notes                String?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  unit        Unit                      @relation(fields: [unitId], references: [id])
+  allocations ProfitSharingAllocation[]
+
+  @@unique([unitId, month, year])
+  @@map("profit_sharing_records")
+}
+
+model UnitShare {
+  id         String   @id @default(uuid())
+  unitId     String
+  userId     String
+  percentage Decimal  @db.Decimal(5, 2)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  unit Unit @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([unitId, userId])
+  @@map("unit_shares")
+}
+
+model ProfitSharingAllocation {
+  id                    String   @id @default(uuid())
+  profitSharingRecordId String
+  userId                String
+  userName              String
+  percentage            Decimal  @db.Decimal(5, 2)
+  amount                Decimal  @db.Decimal(10, 2)
+  createdAt             DateTime @default(now())
+
+  profitSharingRecord ProfitSharingRecord @relation(fields: [profitSharingRecordId], references: [id], onDelete: Cascade)
+  user                User                @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@map("profit_sharing_allocations")
 }
 
 // ─── File Storage ─────────────────────────────────────────────────────────────

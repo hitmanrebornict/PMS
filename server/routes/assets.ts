@@ -18,6 +18,7 @@ const createUnitSchema = z.object({
   unitNumber: z.string().min(1).max(50),
   type: z.enum(['STUDIO', 'ONE_BEDROOM', 'TWO_BEDROOM', 'THREE_BEDROOM', 'BUNGALOW', 'OTHER']),
   suggestedRentalPrice: z.number().min(0),
+  guaranteeFee: z.number().min(0).nullable().optional(),
   status: z.enum(['VACANT', 'OCCUPIED', 'MAINTENANCE']).default('VACANT'),
 });
 
@@ -126,6 +127,7 @@ router.get('/units', authenticate, requireViewer, async (_req: AuthRequest, res:
       unitNumber: u.unitNumber,
       type: u.type,
       suggestedRentalPrice: Number(u.suggestedRentalPrice),
+      guaranteeFee: u.guaranteeFee != null ? Number(u.guaranteeFee) : null,
       status: u.status,
     })));
   } catch (err) {
@@ -141,13 +143,14 @@ router.post('/units', authenticate, requireManager, async (req: AuthRequest, res
     return;
   }
   try {
-    const unit = await prisma.unit.create({ data: parsed.data });
+    const unit = await (prisma.unit.create as any)({ data: parsed.data });
     res.status(201).json({
       id: unit.id,
       propertyId: unit.propertyId,
       unitNumber: unit.unitNumber,
       type: unit.type,
       suggestedRentalPrice: Number(unit.suggestedRentalPrice),
+      guaranteeFee: unit.guaranteeFee != null ? Number(unit.guaranteeFee) : null,
       status: unit.status,
     });
   } catch (err: any) {
@@ -171,7 +174,7 @@ router.put('/units/:id', authenticate, requireManager, async (req: AuthRequest, 
     return;
   }
   try {
-    const unit = await prisma.unit.update({
+    const unit = await (prisma.unit.update as any)({
       where: { id: req.params.id },
       data: parsed.data,
     });
@@ -181,6 +184,7 @@ router.put('/units/:id', authenticate, requireManager, async (req: AuthRequest, 
       unitNumber: unit.unitNumber,
       type: unit.type,
       suggestedRentalPrice: Number(unit.suggestedRentalPrice),
+      guaranteeFee: unit.guaranteeFee != null ? Number(unit.guaranteeFee) : null,
       status: unit.status,
     });
   } catch (err: any) {

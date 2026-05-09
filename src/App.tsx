@@ -11,6 +11,7 @@ import {
 
 // Hooks
 import { useApi } from './hooks/useApi';
+import { useAuth } from './contexts/AuthContext';
 
 // Layout
 import { ManageSidebar, ActiveTab } from './components/layout/ManageSidebar';
@@ -31,6 +32,7 @@ import { DataSourcesPage }  from './pages/manage/DataSourcesPage';
 import { InvestmentsPage }       from './pages/manage/InvestmentsPage';
 import { InvestmentProfitPage } from './pages/manage/InvestmentProfitPage';
 import { OwnerAgreementsPage }  from './pages/manage/OwnerAgreementsPage';
+import { ProfitSharingPage }    from './pages/manage/ProfitSharingPage';
 
 // Modals
 import { MasterPropertyModal }   from './components/manage/MasterPropertyModal';
@@ -49,10 +51,17 @@ import { OwnerAgreementModal }    from './components/manage/OwnerAgreementModal'
 
 export default function App() {
   const { apiFetch } = useApi();
+  const { user } = useAuth();
 
   // ─── Navigation ────────────────────────────────────────────────
-  const [activeTab, setActiveTab]       = useState<ActiveTab>('dashboard');
+  const defaultTab: ActiveTab = user?.role === 'PROFIT_SHARING' ? 'profitSharing' : 'dashboard';
+  const [activeTab, setActiveTab]       = useState<ActiveTab>(defaultTab);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+  const handleSetActiveTab = (tab: ActiveTab) => {
+    if (user?.role === 'PROFIT_SHARING' && tab !== 'profitSharing') return;
+    setActiveTab(tab);
+  };
 
   // ─── Data ──────────────────────────────────────────────────────
   const [masterProperties, setMasterProperties] = useState<MasterProperty[]>([]);
@@ -152,11 +161,13 @@ export default function App() {
   const handleAddUnit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
+    const guaranteeFeeRaw = fd.get('guaranteeFee') as string;
     const payload = {
       propertyId:           fd.get('propertyId') as string,
       unitNumber:           fd.get('unitNumber') as string,
       type:                 fd.get('type') as UnitType,
       suggestedRentalPrice: Number(fd.get('suggestedRentalPrice')),
+      guaranteeFee:         guaranteeFeeRaw !== '' ? Number(guaranteeFeeRaw) : null,
       status:               fd.get('status') as AssetStatus,
     };
     const url = selectedUnit
@@ -664,6 +675,7 @@ export default function App() {
       />
     ),
     investmentProfit: <InvestmentProfitPage />,
+    profitSharing: <ProfitSharingPage />,
     expenses: (
       <ExpensesPage
         expenseTypes={expenseTypes}
@@ -683,7 +695,7 @@ export default function App() {
     <div className="flex h-screen bg-slate-50 overflow-hidden relative">
       <ManageSidebar
         activeTab={activeTab}
-        setActiveTab={setActiveTab}
+        setActiveTab={handleSetActiveTab}
         isOpen={isSidebarOpen}
         setIsOpen={setIsSidebarOpen}
       />

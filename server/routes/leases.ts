@@ -4,6 +4,7 @@ import PDFDocument from 'pdfkit';
 import prisma from '../lib/prisma.js';
 import { authenticate, AuthRequest } from '../middleware/authenticate.js';
 import { requireViewer, requireManager } from '../middleware/authorize.js';
+import { checkConflict, generateInvoiceData, calculateTotalAmount } from '../services/lease.service.js';
 
 const router = Router();
 
@@ -40,6 +41,12 @@ function serializeLease(lease: any) {
 
 router.get('/', authenticate, requireViewer, async (_req: AuthRequest, res: Response) => {
   try {
+    // Auto-mark any PENDING invoices whose dueDate has passed as OVERDUE
+    await (prisma.invoice.updateMany as any)({
+      where: { status: 'PENDING', dueDate: { lt: new Date() } },
+      data: { status: 'OVERDUE' },
+    });
+
     const leases: any[] = await (prisma.leaseAgreement.findMany as any)({
       include: {
         customer: { select: { id: true, name: true, phoneLocal: true, icPassport: true, whatsappNumber: true } },
@@ -48,11 +55,19 @@ router.get('/', authenticate, requireViewer, async (_req: AuthRequest, res: Resp
         carpark: { select: { id: true, carparkNumber: true } },
         deposit: true,
         _count:  { select: { invoices: true } },
+        // Include only OVERDUE invoices for the indicator (minimal payload)
+        invoices: { select: { id: true }, where: { status: 'OVERDUE' } },
       },
       orderBy: { startDate: 'desc' },
     });
 
-    res.json(leases.map(serializeLease));
+    res.json(leases.map(l => {
+      const overdueInvoiceCount: number = l.invoices?.length ?? 0;
+      const serialized = serializeLease(l);
+      // Remove the raw overdue-only invoices array; it's not part of the list shape
+      const { invoices: _invoices, ...rest } = serialized;
+      return { ...rest, hasOverdueInvoice: overdueInvoiceCount > 0, overdueInvoiceCount };
+    }));
   } catch (err) {
     console.error('List leases error:', err);
     res.status(500).json({ error: 'Internal server error' });
@@ -235,10 +250,11 @@ router.patch('/:id/complete', authenticate, requireManager, async (req: AuthRequ
   }
 });
 
-// ─── PATCH /:id — Update editable lease fields ────────────────────────────
+// ─── PATCH /:id — Update editable lease fields (with invoice regeneration) ──
 
 const updateLeaseSchema = z.object({
   unitPrice: z.number().positive().optional(),
+  startDate: z.string().optional(),
   endDate: z.string().optional(),
   notes: z.string().optional(),
 });
@@ -251,36 +267,123 @@ router.patch('/:id', authenticate, requireManager, async (req: AuthRequest, res:
   }
 
   try {
-    const lease = await prisma.leaseAgreement.findUnique({ where: { id: req.params.id } });
-    if (!lease) {
+    const existing = await prisma.leaseAgreement.findUnique({ where: { id: req.params.id } });
+    if (!existing) {
       res.status(404).json({ error: 'Lease not found' });
       return;
     }
-    if (lease.status !== 'ACTIVE' && lease.status !== 'UPCOMING') {
+    if (existing.status !== 'ACTIVE' && existing.status !== 'UPCOMING') {
       res.status(400).json({ error: 'Only ACTIVE or UPCOMING leases can be edited' });
       return;
     }
 
-    const data: any = {};
-    if (parsed.data.notes !== undefined) data.notes = parsed.data.notes;
-    if (parsed.data.unitPrice !== undefined) {
-      const { Decimal } = await import('@prisma/client/runtime/library');
-      data.unitPrice = new Decimal(parsed.data.unitPrice);
+    // Resolve new values (fall back to existing if not provided)
+    const newStartDate = parsed.data.startDate ? new Date(parsed.data.startDate) : existing.startDate;
+    const newEndDate   = parsed.data.endDate   ? new Date(parsed.data.endDate)   : existing.endDate;
+    const newUnitPrice = parsed.data.unitPrice  ?? Number(existing.unitPrice);
+    const promotionAmount = Number(existing.promotionAmount ?? 0);
+
+    if (isNaN(newStartDate.getTime()) || isNaN(newEndDate.getTime())) {
+      res.status(400).json({ error: 'Invalid date' });
+      return;
     }
-    if (parsed.data.endDate !== undefined) {
-      const endDate = new Date(parsed.data.endDate);
-      if (isNaN(endDate.getTime())) {
-        res.status(400).json({ error: 'Invalid end date' });
-        return;
-      }
-      if (endDate <= lease.startDate) {
-        res.status(400).json({ error: 'End date must be after start date' });
-        return;
-      }
-      data.endDate = endDate;
+    if (newEndDate <= newStartDate) {
+      res.status(400).json({ error: 'End date must be after start date' });
+      return;
     }
 
-    const updated = await prisma.leaseAgreement.update({ where: { id: req.params.id }, data });
+    const datesChanged = parsed.data.startDate !== undefined || parsed.data.endDate !== undefined;
+    const priceChanged = parsed.data.unitPrice  !== undefined;
+    const needsRegen   = datesChanged || priceChanged;
+
+    // Conflict check when dates change (skip if only notes/price changed and dates are same)
+    if (datesChanged) {
+      const conflict = await checkConflict(
+        existing.unitId, existing.carparkId, newStartDate, newEndDate, existing.id,
+      );
+      if (conflict) {
+        res.status(409).json({ error: 'Date range conflicts with another active/upcoming lease for this asset' });
+        return;
+      }
+    }
+
+    const { Decimal } = await import('@prisma/client/runtime/library');
+
+    if (needsRegen) {
+      // Recalculate totals and regenerate invoices inside a transaction
+      const newTotalAmount = calculateTotalAmount(newStartDate, newEndDate, existing.billingCycle, newUnitPrice, promotionAmount);
+
+      const today = new Date(); today.setHours(0, 0, 0, 0);
+      const startDay = new Date(newStartDate); startDay.setHours(0, 0, 0, 0);
+      const newStatus = startDay <= today ? 'ACTIVE' : 'UPCOMING';
+
+      await prisma.$transaction(async (tx) => {
+        // 1. Update lease header
+        await tx.leaseAgreement.update({
+          where: { id: existing.id },
+          data: {
+            startDate: newStartDate,
+            endDate: newEndDate,
+            unitPrice: new Decimal(newUnitPrice),
+            totalAmount: new Decimal(newTotalAmount),
+            status: newStatus,
+            ...(parsed.data.notes !== undefined ? { notes: parsed.data.notes } : {}),
+          },
+        });
+
+        // 2. Drop PENDING and OVERDUE invoices — keep PAID and CANCELLED
+        await tx.invoice.deleteMany({
+          where: { leaseId: existing.id, status: { in: ['PENDING', 'OVERDUE'] } },
+        });
+
+        // 3. Regenerate invoices for the new period
+        const invoiceData = generateInvoiceData(
+          newStartDate, newEndDate, existing.billingCycle, newUnitPrice, newTotalAmount, promotionAmount,
+        );
+        if (invoiceData.length > 0) {
+          await tx.invoice.createMany({
+            data: invoiceData.map(inv => ({
+              leaseId: existing.id,
+              periodStart: inv.periodStart,
+              periodEnd: inv.periodEnd,
+              amount: new Decimal(inv.amount),
+              status: 'PENDING' as const,
+              dueDate: inv.dueDate,
+            })),
+          });
+        }
+
+        // 4. Sync asset status if it changed
+        if (newStatus !== existing.status) {
+          if (newStatus === 'ACTIVE') {
+            if (existing.unitId) await tx.unit.update({ where: { id: existing.unitId }, data: { status: 'OCCUPIED' } });
+            if (existing.carparkId) await tx.carpark.update({ where: { id: existing.carparkId }, data: { status: 'OCCUPIED' } });
+          } else if (newStatus === 'UPCOMING' && existing.status === 'ACTIVE') {
+            if (existing.unitId) await tx.unit.update({ where: { id: existing.unitId }, data: { status: 'VACANT' } });
+            if (existing.carparkId) await tx.carpark.update({ where: { id: existing.carparkId }, data: { status: 'VACANT' } });
+          }
+        }
+      });
+    } else {
+      // Notes-only change — simple update, no invoice impact
+      const data: any = {};
+      if (parsed.data.notes !== undefined) data.notes = parsed.data.notes;
+      await prisma.leaseAgreement.update({ where: { id: existing.id }, data });
+    }
+
+    // Return the full updated lease with invoices
+    const updated: any = await (prisma.leaseAgreement.findUnique as any)({
+      where: { id: existing.id },
+      include: {
+        customer: { select: { id: true, name: true, phoneLocal: true, icPassport: true, email: true, currentAddress: true, whatsappNumber: true } },
+        company:  { select: { id: true, name: true, managerName: true, email: true, phone: true, tinNumber: true, address: true, whatsappNumber: true } },
+        unit:    { select: { id: true, unitNumber: true, property: { select: { name: true } } } },
+        carpark: { select: { id: true, carparkNumber: true } },
+        deposit: true,
+        invoices: { orderBy: { periodStart: 'asc' } },
+        _count:  { select: { invoices: true } },
+      },
+    });
     res.json(serializeLease(updated));
   } catch (err) {
     console.error('Update lease error:', err);

@@ -25,15 +25,25 @@ const router = Router();
 // ─── Schemas ──────────────────────────────────────────────────────────────────
 
 const loginSchema = z.object({
-  email: z.string().email(),
+  identifier: z.string().min(1),
   password: z.string().min(1),
 });
 
 const createUserSchema = z.object({
   email: z.string().email(),
+  username: z.string().min(3).regex(/^[a-zA-Z0-9_]+$/, 'Username must be letters, numbers, or underscores').optional().nullable(),
   password: z.string(),
   name: z.string().min(1),
-  role: z.enum(['SUPER_ADMIN', 'ADMIN', 'MANAGER', 'VIEWER']).default('VIEWER'),
+  role: z.enum(['SUPER_ADMIN', 'ADMIN', 'MANAGER', 'VIEWER', 'PROFIT_SHARING']).default('VIEWER'),
+});
+
+const updateUserSchema = z.object({
+  email: z.string().email().optional(),
+  username: z.string().min(3).regex(/^[a-zA-Z0-9_]+$/, 'Username must be letters, numbers, or underscores').optional().nullable(),
+  password: z.string().optional(),
+  name: z.string().min(1).optional(),
+  role: z.enum(['SUPER_ADMIN', 'ADMIN', 'MANAGER', 'VIEWER', 'PROFIT_SHARING']).optional(),
+  isActive: z.boolean().optional(),
 });
 
 const forgotSchema = z.object({ email: z.string().email() });
@@ -48,14 +58,17 @@ const resetSchema = z.object({
 router.post('/login', async (req: Request, res: Response) => {
   const parsed = loginSchema.safeParse(req.body);
   if (!parsed.success) {
-    res.status(400).json({ error: 'Invalid email or password format' });
+    res.status(400).json({ error: 'Invalid credentials format' });
     return;
   }
 
-  const { email, password } = parsed.data;
+  const { identifier, password } = parsed.data;
 
   try {
-    const user = await prisma.user.findUnique({ where: { email } });
+    const isEmail = identifier.includes('@');
+    const user = isEmail
+      ? await prisma.user.findUnique({ where: { email: identifier } })
+      : await (prisma.user as any).findFirst({ where: { username: identifier } });
 
     if (!user || !user.isActive) {
       res.status(401).json({ error: 'Invalid credentials' });
@@ -278,7 +291,7 @@ router.post(
       return;
     }
 
-    const { email, password, name, role } = parsed.data;
+    const { email, username, password, name, role } = parsed.data;
     const strengthError = validatePasswordStrength(password);
     if (strengthError) {
       res.status(400).json({ error: strengthError });
@@ -292,10 +305,18 @@ router.post(
         return;
       }
 
+      if (username) {
+        const usernameExists = await (prisma.user as any).findFirst({ where: { username } });
+        if (usernameExists) {
+          res.status(409).json({ error: 'Username already taken' });
+          return;
+        }
+      }
+
       const passwordHash = await hashPassword(password);
-      const user = await prisma.user.create({
-        data: { email, passwordHash, name, role },
-        select: { id: true, email: true, name: true, role: true, createdAt: true },
+      const user = await (prisma.user as any).create({
+        data: { email, username: username ?? null, passwordHash, name, role },
+        select: { id: true, email: true, username: true, name: true, role: true, createdAt: true },
       });
 
       res.status(201).json(user);
@@ -313,14 +334,87 @@ router.get(
   authenticate,
   requireSuperAdmin,
   async (_req: AuthRequest, res: Response) => {
-    const users = await prisma.user.findMany({
+    const users = await (prisma.user as any).findMany({
       select: {
-        id: true, email: true, name: true, role: true,
+        id: true, email: true, username: true, name: true, role: true,
         isActive: true, createdAt: true,
       },
       orderBy: { createdAt: 'desc' },
     });
     res.json(users);
+  }
+);
+
+// ─── PUT /api/auth/users/:id — SUPER_ADMIN only ──────────────────────────────
+
+router.put(
+  '/users/:id',
+  authenticate,
+  requireSuperAdmin,
+  async (req: AuthRequest, res: Response) => {
+    const { id } = req.params;
+    const parsed = updateUserSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: parsed.error.flatten() });
+      return;
+    }
+
+    const { email, username, password, name, role, isActive } = parsed.data;
+
+    try {
+      const target = await prisma.user.findUnique({ where: { id } });
+      if (!target) {
+        res.status(404).json({ error: 'User not found' });
+        return;
+      }
+
+      if (email && email !== target.email) {
+        const emailExists = await prisma.user.findUnique({ where: { email } });
+        if (emailExists) {
+          res.status(409).json({ error: 'Email already registered' });
+          return;
+        }
+      }
+
+      if (username !== undefined && username !== null) {
+        const usernameExists = await (prisma.user as any).findFirst({ where: { username, NOT: { id } } });
+        if (usernameExists) {
+          res.status(409).json({ error: 'Username already taken' });
+          return;
+        }
+      }
+
+      const data: Record<string, any> = {};
+      if (name !== undefined) data.name = name;
+      if (email !== undefined) data.email = email;
+      if (username !== undefined) data.username = username;
+      if (role !== undefined) data.role = role;
+      if (isActive !== undefined) {
+        data.isActive = isActive;
+        if (!isActive) {
+          // Revoke all refresh tokens when deactivating
+          await prisma.refreshToken.updateMany({ where: { userId: id }, data: { isRevoked: true } });
+        }
+      }
+      if (password) {
+        if (validatePasswordStrength(password)) {
+          res.status(400).json({ error: validatePasswordStrength(password) });
+          return;
+        }
+        data.passwordHash = await hashPassword(password);
+      }
+
+      const updated = await (prisma.user as any).update({
+        where: { id },
+        data,
+        select: { id: true, email: true, username: true, name: true, role: true, isActive: true, createdAt: true },
+      });
+
+      res.json(updated);
+    } catch (err) {
+      console.error('Update user error:', err);
+      res.status(500).json({ error: 'Internal server error' });
+    }
   }
 );
 
