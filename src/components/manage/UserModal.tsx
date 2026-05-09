@@ -4,8 +4,8 @@ import { Modal } from '../common/Modal';
 
 export interface SystemUser {
   id: string;
-  email: string;
-  username?: string | null;
+  username: string;
+  email?: string | null;
   name: string;
   role: 'SUPER_ADMIN' | 'ADMIN' | 'MANAGER' | 'VIEWER' | 'PROFIT_SHARING';
   isActive: boolean;
@@ -13,9 +13,9 @@ export interface SystemUser {
 }
 
 export interface UserFormData {
+  username: string;
   name: string;
-  email: string;
-  username?: string | null;
+  email?: string | null;
   password?: string;
   role: 'SUPER_ADMIN' | 'ADMIN' | 'MANAGER' | 'VIEWER' | 'PROFIT_SHARING';
   isActive: boolean;
@@ -53,10 +53,16 @@ export function UserModal({ isOpen, onClose, onSubmit, selectedUser }: UserModal
     }
 
     const usernameRaw = (fd.get('username') as string).trim();
+    if (!usernameRaw) {
+      setFormError('Username is required.');
+      return;
+    }
+
+    const emailRaw = (fd.get('email') as string).trim();
     const data: UserFormData = {
+      username: usernameRaw,
       name: fd.get('name') as string,
-      email: fd.get('email') as string,
-      username: usernameRaw || null,
+      email: emailRaw || null,
       role: fd.get('role') as SystemUser['role'],
       isActive: fd.get('isActive') === 'true',
     };
@@ -85,6 +91,21 @@ export function UserModal({ isOpen, onClose, onSubmit, selectedUser }: UserModal
           </div>
         )}
 
+        {/* Username */}
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1">
+            Username <span className="text-rose-500">*</span>
+          </label>
+          <input
+            name="username"
+            defaultValue={selectedUser?.username ?? ''}
+            required
+            className="w-full px-4 py-2 rounded-lg border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
+            placeholder="e.g. johndoe"
+          />
+          <p className="mt-1 text-xs text-slate-400">Letters, numbers, underscores only. Used as the primary login identifier.</p>
+        </div>
+
         {/* Full Name */}
         <div>
           <label className="block text-sm font-medium text-slate-700 mb-1">
@@ -102,30 +123,20 @@ export function UserModal({ isOpen, onClose, onSubmit, selectedUser }: UserModal
         {/* Email */}
         <div>
           <label className="block text-sm font-medium text-slate-700 mb-1">
-            Email <span className="text-rose-500">*</span>
+            Email <span className="text-slate-400 font-normal">(optional)</span>
           </label>
           <input
             name="email"
             type="email"
-            defaultValue={selectedUser?.email}
-            required
+            defaultValue={selectedUser?.email ?? ''}
             className="w-full px-4 py-2 rounded-lg border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
             placeholder="e.g. john@versahome.com"
           />
-        </div>
-
-        {/* Username */}
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">
-            Username <span className="text-slate-400 font-normal">(optional)</span>
-          </label>
-          <input
-            name="username"
-            defaultValue={selectedUser?.username ?? ''}
-            className="w-full px-4 py-2 rounded-lg border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
-            placeholder="e.g. johndoe"
-          />
-          <p className="mt-1 text-xs text-slate-400">Letters, numbers, underscores only. Used for login.</p>
+          {selectedUser && !selectedUser.email && (
+            <p className="mt-1 text-xs text-amber-600">
+              No email — this user cannot self-reset their password. Use this form to set a new password directly.
+            </p>
+          )}
         </div>
 
         {/* Password */}
