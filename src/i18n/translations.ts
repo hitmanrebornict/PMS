@@ -146,13 +146,13 @@ const translations = {
     },
     phone: {
       title: { zh: '商务电话', en: 'Business Contact' },
-      value: '+6011 3303 3319 & +601 2828 7799',
+      value: '+601 2828 7799',
       link: 'tel:+60128287799',
     },
     whatsapp: {
       title: 'WhatsApp',
-      value: '+6011 3303 3319 & +601 2828 7799',
-      link: 'https://wa.me/601133033319',
+      value: '+601 2828 7799',
+      link: 'https://wa.me/60128287799',
     },
     email: {
       title: { zh: '电子邮件', en: 'Email' },
@@ -165,7 +165,7 @@ const translations = {
     },
     xiaohongshu: {
       title: { zh: '小红书', en: 'RedNote (XHS)' },
-      id: 'V_01133033319',
+      id: '27766552838',
     },
     scanToConnect: {
       zh: '扫码关注',

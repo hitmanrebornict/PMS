@@ -24,7 +24,7 @@ export default function CTASection() {
           </p>
           <div className="mt-10 flex flex-wrap items-center gap-4">
             <a
-              href="https://wa.me/601133033319"
+              href="https://wa.me/60128287799"
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2.5 bg-on-primary text-primary px-7 py-3.5 rounded-[0.375rem] font-body font-medium text-base transition-opacity hover:opacity-90"
