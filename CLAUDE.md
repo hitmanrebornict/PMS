@@ -2,6 +2,13 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Documentation — read before non-trivial changes
+
+- **`docs/AI_CONTEXT.md`** — the full agent reference: non-negotiable rules, complete API table, data-model cheat-sheet, invariants with file anchors, recipes for common tasks, and a known-defects list. Read it before touching leases, invoices, expenses, owner agreements, profit, profit sharing, or auth.
+- **`docs/ARCHITECTURE.md`** — the human-oriented design guide with diagrams and the "Handle with care" section explaining *why* things are the way they are.
+
+The API route table further down this file predates several features (owners, owner agreements, investments, investment analysis, profit sharing, invoice PDF, expense pay) and is kept as a quick reference only; `docs/AI_CONTEXT.md §5` is complete.
+
 ## Commands
 
 ```bash
