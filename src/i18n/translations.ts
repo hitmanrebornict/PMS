@@ -77,13 +77,13 @@ const translations = {
       en: 'VersaHome doesn\'t just provide rental spaces — we deliver a complete concierge experience. Tenants enjoy turnkey move-in convenience, while owners benefit from effortless asset management and appreciation.',
     },
     p2: {
-      zh: '我们深耕吉隆坡核心地段，在 Razak City Residences、Sunway Velocity 2、Cubic Botanical 及 Trion KL 等优质项目中，持续为住户和业主创造价值。',
-      en: 'We operate in prime Kuala Lumpur locations — Razak City Residences, Sunway Velocity 2, Cubic Botanical, and Trion KL — continuously creating value for residents and property owners alike.',
+      zh: '我们深耕吉隆坡核心地段，在 Skyline KL、Razak City Residences、Agile Bukit Bintang、Sunway Velocity 2、Cubic Botanical 及 Trion KL 等优质项目中，持续为住户和业主创造价值。',
+      en: 'We operate in prime Kuala Lumpur locations — Skyline KL, Razak City Residences, Agile Bukit Bintang, Sunway Velocity 2, Cubic Botanical, and Trion KL — continuously creating value for residents and property owners alike.',
     },
     stats: {
       stat1: { value: '4', label: { zh: '核心服务', en: 'Core Services' } },
       stat2: { value: '24/7', label: { zh: '全天候服务', en: 'Availability' } },
-      stat3: { value: '4', label: { zh: '服务楼盘', en: 'Locations' } },
+      stat3: { value: '6', label: { zh: '服务楼盘', en: 'Locations' } },
     },
   },
   testimonials: {
@@ -130,7 +130,14 @@ const translations = {
     companyName: 'Versa Home Sdn Bhd',
     locations: {
       title: { zh: '服务楼盘', en: 'Our Locations' },
-      list: ['Razak City Residences', 'Sunway Velocity 2', 'Cubic Botanical', 'Trion KL'],
+      list: [
+        'Skyline KL',
+        'Razak City Residences',
+        'Agile Bukit Bintang',
+        'Sunway Velocity 2',
+        'Cubic Botanical',
+        'Trion KL',
+      ],
     },
     hours: {
       title: { zh: '营业时间', en: 'Business Hours' },
@@ -146,13 +153,13 @@ const translations = {
     },
     phone: {
       title: { zh: '商务电话', en: 'Business Contact' },
-      value: '+6011 3303 3319 & +601 2828 7799',
+      value: '+601 2828 7799',
       link: 'tel:+60128287799',
     },
     whatsapp: {
       title: 'WhatsApp',
-      value: '+6011 3303 3319 & +601 2828 7799',
-      link: 'https://wa.me/601133033319',
+      value: '+601 2828 7799',
+      link: 'https://wa.me/60128287799',
     },
     email: {
       title: { zh: '电子邮件', en: 'Email' },
@@ -165,7 +172,7 @@ const translations = {
     },
     xiaohongshu: {
       title: { zh: '小红书', en: 'RedNote (XHS)' },
-      id: 'V_01133033319',
+      id: '27766552838',
     },
     scanToConnect: {
       zh: '扫码关注',
