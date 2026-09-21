@@ -64,7 +64,9 @@ server/routes/assets.ts               properties/units/carparks CRUD
 server/routes/customers.ts, companies.ts, datasources.ts   CRUD
 server/routes/inventory.ts            /timeline, /customers/search
 server/routes/upload.ts               multer disk storage → uploads/{photos|documents}; File rows
-server/routes/reminders.ts            ADMIN email blasts (BROKEN for company leases — §9)
+server/routes/reminders.ts            ADMIN email blasts; resolveRecipient() handles customer OR company
+server/services/leaseStatus.service.ts  syncLeaseStatuses(): UPCOMING→ACTIVE + asset OCCUPIED, PENDING→OVERDUE.
+                                      Runs on boot, hourly (server/index.ts), and at the top of GET /api/leases
 server/lib/prisma.ts                  singleton
 server/lib/email.ts                   nodemailer + 3 HTML templates
 
@@ -249,11 +251,13 @@ Error conventions: Zod failure → `400 {error: issues[0].message}` (lease route
 
 Numbered so you can cite them. File anchors are approximate.
 
-### 6.1 Nothing runs on a timer
-- `Invoice.status → OVERDUE` happens **only** inside `GET /api/leases` (`leases.ts:44-48`).
-- `LeaseAgreement.status UPCOMING → ACTIVE` happens **only** on create (`lease.service.ts:161-165`) or `PATCH /leases/:id` (`leases.ts:316-318`). Never automatically.
-- `ACTIVE → COMPLETED` is manual. `OwnerAgreementStatus.COMPLETED` is never set. `Investment.MATURED` is manual.
-- `Unit.status` / `Carpark.status` change only in: createLease (ACTIVE→OCCUPIED), PATCH lease (ACTIVE↔UPCOMING), terminate, complete (→VACANT).
+### 6.1 One scheduled job; everything else is manual
+- `syncLeaseStatuses()` (`server/services/leaseStatus.service.ts`) is the **only** clock-driven code. It runs on boot, hourly from `server/index.ts`, and at the top of `GET /api/leases`. Idempotent — keep any addition idempotent too.
+- It does exactly two things: `UPCOMING → ACTIVE` for leases whose `startDate` has arrived (+ asset `OCCUPIED`), and `PENDING → OVERDUE` for past-due invoices.
+- Month/day comparisons inside it use UTC (`Date.UTC`), because lease dates are stored as UTC midnight.
+- `ACTIVE → COMPLETED` is **manual** and deliberately not automated — it implies the deposit was settled. Consequence: a lease past `endDate` keeps its unit `OCCUPIED` until someone terminates or completes it.
+- `OwnerAgreementStatus.COMPLETED` is never set. `Investment.MATURED` is manual.
+- `Unit.status` / `Carpark.status` change only in: createLease (→OCCUPIED), syncLeaseStatuses (→OCCUPIED), PATCH lease (ACTIVE↔UPCOMING), terminate, complete, delete (→VACANT).
 - Refresh tokens are never purged.
 
 ### 6.2 Income & expense definition (three copies)
@@ -351,7 +355,7 @@ Edit `generateInvoiceData` / `calculateTotalAmount` in `server/services/lease.se
 Edit **all** of: `profit.ts` (`/`, `/monthly`, `/monthly/roomtype` — three handlers), `investmentAnalysis.ts` (`getUnitMonthlyData`), `profitSharing.ts` (`/calculate` and `POST /records` — two handlers). Better: extract a shared helper first.
 
 ### 7.5 Add a scheduled job
-None exists. If adding one (e.g. `node-cron` in `server/index.ts`), first candidates: promote UPCOMING→ACTIVE leases whose start ≤ today and set unit OCCUPIED; mark OVERDUE invoices (move the `updateMany` out of `GET /leases`); purge expired refresh tokens. Keep it idempotent.
+Extend `syncLeaseStatuses()` in `server/services/leaseStatus.service.ts` rather than adding a second scheduler — it is already wired to boot, an hourly `setInterval` in `server/index.ts`, and `GET /api/leases`. No cron dependency is used. **Keep every addition idempotent**, since it runs on each Leases page load. Remaining candidates: purge expired `RefreshToken` rows; decide what should happen when a lease passes its `endDate` (§6.1).
 
 ### 7.6 Touch the landing page
 Content lives in `src/i18n/translations.ts` (both `zh` and `en` keys; `t()` picks by `lang`). Components in `src/components/landing/`. `CTASection.tsx` has a hard-coded WhatsApp URL — keep it in sync with `translations.contact.whatsapp.link`. QR images in `public/`.
@@ -360,8 +364,8 @@ Content lives in `src/i18n/translations.ts` (both `zh` and `en` keys; `t()` pick
 
 ## 8. Gotcha index (one line each → details in ARCHITECTURE §9)
 
-- OVERDUE is set by the Leases list endpoint, nowhere else.
-- UPCOMING never auto-promotes; unit stays VACANT.
+- OVERDUE and UPCOMING→ACTIVE are handled by `syncLeaseStatuses()` (boot, hourly, and on `GET /api/leases`).
+- A lease past its end date still does NOT auto-complete; its unit stays OCCUPIED until someone closes it.
 - Three profit calculators; profit-sharing dates income by invoice `periodStart`, the other two by `paidAt` — they do not reconcile, by design.
 - A lease can be soft-deleted; every lease query must filter `isActive: true`, including the booking conflict check.
 - Expense status is ignored by every report.
@@ -393,7 +397,7 @@ Verified by reading at `3a2e7b8`, not by running. When you encounter one during 
 
 | # | File | Defect |
 |---|---|---|
-| 1 | `server/routes/reminders.ts:37-38`, `:91` | `customer.email` on a company lease (`customer` null) → TypeError → whole endpoint 500s. Guard with `lease.customer?.email ?? lease.company?.email`. |
+| 1 | ~~`server/routes/reminders.ts` company-lease null deref~~ | **Fixed** Sept 2026 — `resolveRecipient()`, per-send try/catch, skipped/failed counts in the response. |
 | 2 | ~~`prisma/seed.ts` missing `username`~~ | **Fixed** Sept 2026 — seeds `username: 'admin'`, matches on username OR email. |
 | 3 | `src/main.tsx` | `/forgot-password` and `/reset-password` pages don't exist; catch-all sends users to `/`. |
 | 4 | `server/routes/leases.ts:161-164` | Terminate ignores OVERDUE invoices. Add `status: { in: ['PENDING','OVERDUE'] }`. |
