@@ -13,7 +13,7 @@
 | Stack | React 19 + TS + Tailwind 4 + Vite 6 (`src/`) · Express 4 + Zod 4 (`server/`) · Prisma 5 + PostgreSQL 16 (`prisma/`) · Node 22 · ESM throughout |
 | Auth | 15-min JWT in memory + 7-day rotating refresh token in httpOnly cookie |
 | Tests | **None.** `npm run lint` = `tsc --noEmit` is the only automated check. |
-| Scheduler | **None.** No cron, no `setInterval` on the server. |
+| Scheduler | One: `syncLeaseStatuses()` — boot, hourly `setInterval`, and on `GET /api/leases`. No cron dependency. |
 | Money | Prisma `Decimal(10,2)` in DB → `Number()` at the API boundary. No ledger; every report recomputes from live rows. |
 | Dates | Client sends `YYYY-MM-DD`; server stores UTC instants; display is `dd/MM/yyyy` via `toLocaleDateString('en-GB')`. |
 
@@ -27,7 +27,7 @@ Read these before touching anything. Each has a section reference for the reason
 2. **Leases end via `status`, not deletion.** `DELETE /api/leases/:id` exists only to undo a mistaken booking: it soft-deletes (`isActive = false`) and is refused once any invoice is paid or a deposit is held. Never hard-delete a lease. Invoices are hard-deleted in exactly one place (lease date/price edit) and you should not add a second. **Any new query that reads leases — directly or through `lease: { … }` — must filter `isActive: true`.**
 3. **Do not rename or reuse the expense types `"Cleaning Fee"` and `"Owner Payment"`.** They are upserted by name in `lease.service.ts` and `ownerAgreement.service.ts`.
 4. **If you change what counts as income or expense, change it in all three calculators:** `server/routes/profit.ts`, `server/routes/investmentAnalysis.ts`, `server/routes/profitSharing.ts` (two handlers). They are copy-pasted, not shared.
-5. **Server date math must use UTC** (`Date.UTC`, `getUTC*`). Existing local-time code in `lease.service.ts`, `leases.ts`, `profitSharing.ts`, `reminders.ts` is a known inconsistency, not a pattern to copy.
+5. **Server date math must use UTC** (`Date.UTC`, `getUTC*`). Existing local-time code in `lease.service.ts`, `leases.ts` and `reminders.ts` is a known inconsistency, not a pattern to copy.
 6. **Convert every Prisma `Decimal` with `Number()` before `res.json`.** Never return raw Prisma rows containing Decimal fields.
 7. **Multi-row writes go in `prisma.$transaction(async tx => …)`.** Services take `tx` as a parameter; pass it through.
 8. **Adding a management page = four edits**: `ActiveTab` union + `SidebarItem` in `src/components/layout/ManageSidebar.tsx`; `pageContent` entry + state/handlers in `src/App.tsx`. No React Router sub-routes.
@@ -117,8 +117,8 @@ docker-compose.yml / .override.yml    app :5000 (override → :5001), postgres "
 | OwnerAgreement | none | soft + `status` | generates Expenses on create |
 | Investment | none | soft + `status` | manual status |
 | UnitShare | `(unitId, userId)` | replaced wholesale on PUT | `percentage` Decimal(5,2); total ≤ 100 |
-| ProfitSharingRecord | `(unitId, month, year)` | upsert on save | snapshot |
-| ProfitSharingAllocation | — | recreated on save | snapshots `userName` |
+| ProfitSharingRecord | `(unitId, month, year)` | **write-once** | second save → 409 |
+| ProfitSharingAllocation | — | created once with its record | snapshots `userName` + `percentage` |
 | File | `storedName` unique | hard delete | bytes in `uploads/photos` or `uploads/documents` by MIME |
 
 ### Enums
@@ -232,7 +232,7 @@ GET   /api/profit-sharing/:unitId/shares         PS|V
 PUT   /api/profit-sharing/:unitId/shares         M      {shares:[{userId,percentage}]} total ≤ 100, replaces all
 GET   /api/profit-sharing/:unitId/calculate?year&month   PS|V (PS must own share)
 GET   /api/profit-sharing/:unitId/records        PS|V (PS must own share)
-POST  /api/profit-sharing/:unitId/records        PS|V (PS must own share)  {month, year, notes?} upsert
+POST  /api/profit-sharing/:unitId/records        PS|V (PS must own share)  {month, year, notes?} — write-once, 409 if exists
 
 POST  /api/upload                        M        multipart "file" (pdf/jpg/png ≤10MB) + customerId?, leaseId?, category?
 GET   /api/upload/:id                    auth     NO role check
@@ -270,7 +270,7 @@ Numbered so you can cite them. File anchors are approximate.
 - Month boundaries: UTC everywhere (`profitSharing.ts` uses the shared `monthBounds()` helper).
 - Guarantee fee: `finalProfit = totalSales >= fee ? net : net - fee` (`profitSharing.ts:247`, `:367`). Whole fee deducted on shortfall, not the gap.
 - Allocation = largest-remainder in cents (`profitSharing.ts:23-33`); sums exactly to `finalProfit`.
-- Saved `ProfitSharingRecord` is a snapshot; re-saving overwrites and rebuilds allocations from **current** shares.
+- Saved `ProfitSharingRecord` is a permanent snapshot: **write-once**. A second POST for the same (unit, month, year) returns 409, guarded by an existence check and by the unique constraint (P2002 → 409). Allocations are created with it and never rebuilt, so a later change to `UnitShare` cannot re-split a settled month.
 
 ### 6.3 What a booking creates (one transaction, `lease.service.ts:138-290`)
 1. Conflict: any ACTIVE/UPCOMING lease on the same asset with `startDate < newEnd && endDate > newStart` → `409`.

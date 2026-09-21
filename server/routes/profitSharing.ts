@@ -331,7 +331,12 @@ router.get('/:unitId/calculate', authenticate, requireProfitSharingOrViewer, asy
   }
 });
 
-// POST /api/profit-sharing/:unitId/records — save/upsert a cutoff record
+// POST /api/profit-sharing/:unitId/records — save a cutoff for a unit + month
+//
+// A cutoff is final: it may be saved once and never changed. It is the record
+// of what was actually distributed to each owner, so silently recomputing it
+// later would re-split an already-settled month using today's percentages and
+// leave no trace of the figures that were paid out.
 router.post('/:unitId/records', authenticate, requireProfitSharingOrViewer, async (req: AuthRequest, res: Response) => {
   const { unitId } = req.params;
   const parsed = saveRecordSchema.safeParse(req.body);
@@ -350,6 +355,20 @@ router.post('/:unitId/records', authenticate, requireProfitSharingOrViewer, asyn
     });
     if (!unit) {
       res.status(404).json({ error: 'Unit not found' });
+      return;
+    }
+
+    // Enforced here as well as in the UI: a stale page or a direct API call
+    // must not be able to overwrite a cutoff either.
+    const existing: any = await (prisma as any).profitSharingRecord.findUnique({
+      where: { unitId_month_year: { unitId, month, year } },
+      select: { createdAt: true },
+    });
+    if (existing) {
+      const savedOn = existing.createdAt.toISOString().slice(0, 10);
+      res.status(409).json({
+        error: `A cutoff for ${month}/${year} was already saved on ${savedOn}. Cutoffs are final and cannot be changed.`,
+      });
       return;
     }
 
@@ -389,17 +408,10 @@ router.post('/:unitId/records', authenticate, requireProfitSharingOrViewer, asyn
     const allocatedAmounts = distributeProfit(finalProfit, unitShares.map(s => ({ percentage: Number(s.percentage) })));
 
     const record: any = await (prisma.$transaction as any)(async (tx: any) => {
-      const upserted = await tx.profitSharingRecord.upsert({
-        where: { unitId_month_year: { unitId, month, year } },
-        update: {
-          guaranteeFeeSnapshot: guaranteeFee,
-          totalSales,
-          totalExpenses,
-          netProfit,
-          finalProfit,
-          notes: notes ?? null,
-        },
-        create: {
+      // create, not upsert — the unique constraint on (unitId, month, year) is
+      // the last line of defence if two saves race the existence check above.
+      const created = await tx.profitSharingRecord.create({
+        data: {
           unitId,
           month,
           year,
@@ -412,13 +424,10 @@ router.post('/:unitId/records', authenticate, requireProfitSharingOrViewer, asyn
         },
       });
 
-      // Delete existing allocations and recreate
-      await tx.profitSharingAllocation.deleteMany({ where: { profitSharingRecordId: upserted.id } });
-
       if (unitShares.length > 0) {
         await tx.profitSharingAllocation.createMany({
           data: unitShares.map((s, i) => ({
-            profitSharingRecordId: upserted.id,
+            profitSharingRecordId: created.id,
             userId: s.userId,
             userName: s.user.name,
             percentage: Number(s.percentage),
@@ -429,7 +438,7 @@ router.post('/:unitId/records', authenticate, requireProfitSharingOrViewer, asyn
 
       // Re-fetch with allocations
       return tx.profitSharingRecord.findUnique({
-        where: { id: upserted.id },
+        where: { id: created.id },
         include: { allocations: true },
       });
     });
@@ -454,7 +463,12 @@ router.post('/:unitId/records', authenticate, requireProfitSharingOrViewer, asyn
         amount: Number(a.amount),
       })),
     });
-  } catch (err) {
+  } catch (err: any) {
+    // Two saves raced past the existence check; the unique constraint caught it.
+    if (err.code === 'P2002') {
+      res.status(409).json({ error: 'A cutoff for this month was just saved. Cutoffs are final and cannot be changed.' });
+      return;
+    }
     console.error('Save profit sharing record error:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
