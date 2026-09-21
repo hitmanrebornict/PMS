@@ -13,7 +13,7 @@ function toNum(v: any): number {
 async function getUnitMonthlyData(unitId: string, from: Date) {
   const [invoiceRows, expenseRows] = await Promise.all([
     prisma.invoice.findMany({
-      where: { status: 'PAID', paidAt: { gte: from }, lease: { unitId } },
+      where: { status: 'PAID', paidAt: { gte: from }, lease: { unitId, isActive: true } },
       select: { paidAt: true, amount: true },
     }),
     prisma.expense.findMany({

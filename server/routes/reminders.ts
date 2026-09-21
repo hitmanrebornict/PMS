@@ -19,7 +19,7 @@ router.post('/rental', authenticate, requireAdmin, async (_req: AuthRequest, res
       where: {
         status: 'PENDING',
         dueDate: { gte: today, lte: soon },
-        lease: { status: 'ACTIVE' },
+        lease: { status: 'ACTIVE', isActive: true },
       },
       include: {
         lease: {
@@ -77,6 +77,7 @@ router.post('/lease', authenticate, requireAdmin, async (_req: AuthRequest, res:
     const leases = await prisma.leaseAgreement.findMany({
       where: {
         status: 'ACTIVE',
+        isActive: true,
         endDate: { gte: today, lte: in30 },
       },
       include: {

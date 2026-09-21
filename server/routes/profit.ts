@@ -24,7 +24,7 @@ router.get('/monthly/roomtype', authenticate, requireViewer, async (req: AuthReq
   const to   = new Date(Date.UTC(year, 11, 31, 23, 59, 59, 999));
 
   try {
-    const unitLeaseWhere: any = { unitId: { not: null } };
+    const unitLeaseWhere: any = { unitId: { not: null }, isActive: true };
     if (unitId)          unitLeaseWhere.unitId = unitId;
     else if (propertyId) unitLeaseWhere.unit = { propertyId };
 
@@ -111,12 +111,12 @@ router.get('/monthly', authenticate, requireViewer, async (req: AuthRequest, res
 
   try {
     // Build lease filter for unit invoices
-    const unitLeaseWhere: any = { unitId: { not: null } };
+    const unitLeaseWhere: any = { unitId: { not: null }, isActive: true };
     if (unitId)     unitLeaseWhere.unitId = unitId;
     else if (propertyId) unitLeaseWhere.unit = { propertyId };
 
     // Build lease filter for carpark invoices
-    const carparkLeaseWhere: any = { carparkId: { not: null } };
+    const carparkLeaseWhere: any = { carparkId: { not: null }, isActive: true };
     if (carparkId) carparkLeaseWhere.carparkId = carparkId;
 
     // Build expense filter
@@ -193,7 +193,7 @@ router.get('/', authenticate, requireViewer, async (req: AuthRequest, res: Respo
 
   try {
     // Build lease filter for unit invoices
-    const unitLeaseWhere: any = { unitId: { not: null } };
+    const unitLeaseWhere: any = { unitId: { not: null }, isActive: true };
     if (unitId)          unitLeaseWhere.unitId = unitId;
     else if (propertyId) unitLeaseWhere.unit = { propertyId };
 
@@ -223,7 +223,7 @@ router.get('/', authenticate, requireViewer, async (req: AuthRequest, res: Respo
     });
 
     // 2. Paid invoices for carpark-based leases within period
-    const carparkLeaseWhere: any = { carparkId: { not: null } };
+    const carparkLeaseWhere: any = { carparkId: { not: null }, isActive: true };
     if (carparkId) carparkLeaseWhere.carparkId = carparkId;
 
     const carparkInvoices = (unitId || propertyId) ? [] : await prisma.invoice.findMany({

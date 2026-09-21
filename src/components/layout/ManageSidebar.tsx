@@ -1,5 +1,5 @@
 
-import { Building2, Users, CalendarDays, LayoutDashboard, X, Home, Car, FileText, UserCog, Receipt, TrendingUp, Share2, Briefcase, PiggyBank, KeyRound, BarChart2, PieChart } from 'lucide-react';
+import { Building2, Users, CalendarDays, LayoutDashboard, X, Home, Car, FileText, UserCog, Receipt, TrendingUp, Share2, Briefcase, PiggyBank, KeyRound, BarChart2, PieChart, LogOut } from 'lucide-react';
 
 import { motion, AnimatePresence } from 'motion/react';
 import { SidebarItem } from '../common/SidebarItem';
@@ -15,7 +15,7 @@ interface ManageSidebarProps {
 }
 
 export function ManageSidebar({ activeTab, setActiveTab, isOpen, setIsOpen }: ManageSidebarProps) {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const isSuperAdmin = user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN';
   const isProfitSharingRole = user?.role === 'PROFIT_SHARING';
 
@@ -23,6 +23,19 @@ export function ManageSidebar({ activeTab, setActiveTab, isOpen, setIsOpen }: Ma
     setActiveTab(tab);
     setIsOpen(false);
   };
+
+  // Clearing the user in AuthContext makes ProtectedRoute redirect to /login.
+  const handleLogout = async () => {
+    if (!confirm('Log out of VersaHome?')) return;
+    await logout();
+  };
+
+  const initials = (user?.name ?? '')
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map(w => w[0]!.toUpperCase())
+    .join('') || '?';
 
   return (
     <>
@@ -113,14 +126,21 @@ export function ManageSidebar({ activeTab, setActiveTab, isOpen, setIsOpen }: Ma
             Email
           </a>
           <div className="flex items-center gap-3 p-2 rounded-lg bg-slate-50">
-            <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center text-slate-600 font-bold">
-              AD
+            <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center text-slate-600 font-bold shrink-0">
+              {initials}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-slate-900 truncate">Admin User</p>
-              <p className="text-xs text-slate-500 truncate">VersaHome Admin</p>
+              <p className="text-sm font-medium text-slate-900 truncate">{user?.name ?? 'Signed in'}</p>
+              <p className="text-xs text-slate-500 truncate">{(user?.role ?? '').replace(/_/g, ' ')}</p>
             </div>
           </div>
+          <button
+            onClick={handleLogout}
+            className="flex items-center justify-center gap-2 w-full px-3 py-2 rounded-lg text-sm font-medium text-slate-600 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+          >
+            <LogOut size={16} />
+            Log out
+          </button>
         </div>
       </aside>
     </>

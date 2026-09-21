@@ -19,6 +19,18 @@ const sharesSchema = z.object({
   })),
 });
 
+// ─── Month bounds ─────────────────────────────────────────────────────────────
+// Invoice.periodStart and Expense.expenseDate are stored as UTC midnight (they
+// originate from YYYY-MM-DD form inputs), so the month window is built in UTC
+// too — otherwise rows on the first/last day of a month fall outside the range
+// whenever the server runs in a non-UTC timezone.
+function monthBounds(year: number, month: number): { monthStart: Date; monthEnd: Date } {
+  return {
+    monthStart: new Date(Date.UTC(year, month - 1, 1)),
+    monthEnd:   new Date(Date.UTC(year, month, 0, 23, 59, 59, 999)),
+  };
+}
+
 // ─── Largest-remainder profit distribution ────────────────────────────────────
 function distributeProfit(finalProfit: number, shares: { percentage: number }[]): number[] {
   if (shares.length === 0) return [];
@@ -211,14 +223,16 @@ router.get('/:unitId/calculate', authenticate, requireProfitSharingOrViewer, asy
       return;
     }
 
-    const periodStart = new Date(year, month - 1, 1);
-    const periodEnd = new Date(year, month, 0, 23, 59, 59, 999);
+    const { monthStart, monthEnd } = monthBounds(year, month);
 
     const invoices: any[] = await (prisma.invoice.findMany as any)({
       where: {
         status: 'PAID',
-        paidAt: { gte: periodStart, lte: periodEnd },
-        lease: { unitId },
+        // Recognised in the month the billing period STARTS, not the month the
+        // tenant happened to pay. A period starting 9 Sep counts in September
+        // even when it is settled on 10 Oct.
+        periodStart: { gte: monthStart, lte: monthEnd },
+        lease: { unitId, isActive: true },
       },
       select: {
         id: true,
@@ -227,14 +241,14 @@ router.get('/:unitId/calculate', authenticate, requireProfitSharingOrViewer, asy
         periodStart: true,
         periodEnd: true,
       },
-      orderBy: { paidAt: 'asc' },
+      orderBy: { periodStart: 'asc' },
     });
 
     const expenses: any[] = await (prisma.expense.findMany as any)({
       where: {
         unitId,
         isActive: true,
-        expenseDate: { gte: periodStart, lte: periodEnd },
+        expenseDate: { gte: monthStart, lte: monthEnd },
       },
       include: { expenseType: { select: { id: true, name: true } } },
       orderBy: { expenseDate: 'asc' },
@@ -339,14 +353,13 @@ router.post('/:unitId/records', authenticate, requireProfitSharingOrViewer, asyn
       return;
     }
 
-    const periodStart = new Date(year, month - 1, 1);
-    const periodEnd = new Date(year, month, 0, 23, 59, 59, 999);
+    const { monthStart, monthEnd } = monthBounds(year, month);
 
     const invoices: any[] = await (prisma.invoice.findMany as any)({
       where: {
         status: 'PAID',
-        paidAt: { gte: periodStart, lte: periodEnd },
-        lease: { unitId },
+        periodStart: { gte: monthStart, lte: monthEnd },
+        lease: { unitId, isActive: true },
       },
       select: { amount: true },
     });
@@ -355,7 +368,7 @@ router.post('/:unitId/records', authenticate, requireProfitSharingOrViewer, asyn
       where: {
         unitId,
         isActive: true,
-        expenseDate: { gte: periodStart, lte: periodEnd },
+        expenseDate: { gte: monthStart, lte: monthEnd },
       },
       select: { amount: true },
     });

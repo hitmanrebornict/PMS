@@ -218,8 +218,9 @@ export default function App() {
     const payload = {
       name:           fd.get('name') as string,
       gender:         genderRaw || null,
-      phoneLocal:     (fd.get('phoneLocal') as string) || undefined,
-      phoneOther:     (fd.get('phoneOther') as string) || undefined,
+      // Sent as '' rather than undefined so a phone number can be cleared.
+      phoneLocal:     (fd.get('phoneLocal') as string) ?? '',
+      phoneOther:     (fd.get('phoneOther') as string) ?? '',
       icPassport:     fd.get('icPassport') as string,
       email:          (fd.get('email') as string) || undefined,
       currentAddress: (fd.get('currentAddress') as string) || undefined,
@@ -284,6 +285,28 @@ export default function App() {
     } else {
       const data = await res.json();
       alert(data.error || 'Failed to delete customer');
+    }
+  };
+
+  // ─── Lease Handlers ────────────────────────────────────────────
+
+  const handleDeleteLease = async (lease: Lease) => {
+    const asset = lease.unit
+      ? `${lease.unit.unitNumber} — ${lease.unit.property.name}`
+      : `Carpark ${lease.carpark?.carparkNumber}`;
+    const renter = lease.company?.name ?? lease.customer?.name ?? 'this renter';
+    if (!confirm(
+      `Delete the lease for ${asset} (${renter})?\n\n` +
+      'The lease, its invoices and its deposit will be hidden from the system. ' +
+      'Any cleaning-fee expenses already recorded stay on the Expenses page — remove them there if needed.',
+    )) return;
+
+    const res = await apiFetch(`/api/leases/${lease.id}`, { method: 'DELETE' });
+    if (res.ok) {
+      await refreshData();
+    } else {
+      const data = await res.json();
+      alert(data.error || 'Failed to delete lease');
     }
   };
 
@@ -624,6 +647,7 @@ export default function App() {
           setSelectedLeaseId(lease.id);
           setIsLeaseDetailModalOpen(true);
         }}
+        onDelete={handleDeleteLease}
       />
     ),
     customers: (

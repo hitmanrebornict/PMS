@@ -312,8 +312,12 @@ export function ProfitSharingPage() {
 
             {expandSales && (
               <div className="px-4 sm:px-5 py-3">
+                <p className="text-xs text-slate-400 mb-2">
+                  Counted by billing period — an invoice whose period starts in this month is
+                  included here even if it was paid in a later month.
+                </p>
                 {calc.invoices.length === 0 ? (
-                  <p className="text-sm text-slate-400 py-1">No paid invoices for this period</p>
+                  <p className="text-sm text-slate-400 py-1">No paid invoices billed for this month</p>
                 ) : (
                   <div className="space-y-2">
                     {/* Mobile: stacked cards */}

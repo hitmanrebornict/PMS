@@ -22,25 +22,10 @@ const customerBaseSchema = z.object({
   dataSourceId: z.string().uuid().optional().nullable(),
 });
 
-const atLeastOnePhone = (data: { phoneLocal?: string; phoneOther?: string }) =>
-  (data.phoneLocal && data.phoneLocal.trim().length > 0) ||
-  (data.phoneOther && data.phoneOther.trim().length > 0);
-
-const createCustomerSchema = customerBaseSchema.refine(atLeastOnePhone, {
-  message: 'At least one phone number (Local H/P or Overseas H/P) is required',
-  path: ['phoneLocal'],
-});
-
-const updateCustomerSchema = customerBaseSchema.partial().refine(
-  data => {
-    // Only enforce if both phone fields are explicitly provided as empty
-    const localGiven = data.phoneLocal !== undefined;
-    const otherGiven = data.phoneOther !== undefined;
-    if (localGiven && otherGiven) return atLeastOnePhone(data as any);
-    return true;
-  },
-  { message: 'At least one phone number is required', path: ['phoneLocal'] }
-);
+// Phone numbers are optional — a customer may be recorded with neither a local
+// nor an overseas number (e.g. a walk-in reachable only through an agent).
+const createCustomerSchema = customerBaseSchema;
+const updateCustomerSchema = customerBaseSchema.partial();
 
 const includeDataSource = { dataSource: { select: { id: true, name: true } } } as any;
 
@@ -84,7 +69,11 @@ router.post('/', authenticate, requireManager, async (req: AuthRequest, res: Res
   try {
     const data = { ...parsed.data };
     if (data.email === '') delete data.email;
-    const customer: any = await (prisma.customer.create as any)({ data, include: includeDataSource });
+    // phoneLocal is NOT NULL in the schema; an omitted number is stored as blank.
+    const customer: any = await (prisma.customer.create as any)({
+      data: { ...data, phoneLocal: data.phoneLocal ?? '' },
+      include: includeDataSource,
+    });
     res.status(201).json({
       id: customer.id,
       customerNo: customer.customerNo,

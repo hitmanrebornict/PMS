@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Customer, DataSource, Gender } from '../../types';
 import { Modal } from '../common/Modal';
 
@@ -11,28 +11,13 @@ interface CustomerModalProps {
 }
 
 export function CustomerModal({ isOpen, onClose, onSubmit, selectedCustomer, dataSources }: CustomerModalProps) {
-  const [phoneError, setPhoneError] = useState('');
-
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const form = e.currentTarget;
-    const phoneLocal = (form.elements.namedItem('phoneLocal') as HTMLInputElement).value.trim();
-    const phoneOther = (form.elements.namedItem('phoneOther') as HTMLInputElement).value.trim();
-    if (!phoneLocal && !phoneOther) {
-      setPhoneError('At least one phone number (Local or Overseas) is required');
-      return;
-    }
-    setPhoneError('');
-    onSubmit(e);
-  };
-
   return (
     <Modal
       isOpen={isOpen}
-      onClose={() => { setPhoneError(''); onClose(); }}
+      onClose={onClose}
       title={selectedCustomer ? 'Edit Customer' : 'Add New Customer'}
     >
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={onSubmit} className="space-y-4">
         {/* Gender + Name */}
         <div className="grid grid-cols-[120px_1fr] gap-3 items-end">
           <div>
@@ -72,9 +57,8 @@ export function CustomerModal({ isOpen, onClose, onSubmit, selectedCustomer, dat
             <input
               name="phoneLocal"
               defaultValue={selectedCustomer?.phoneLocal}
-              onChange={() => phoneError && setPhoneError('')}
-              className={`w-full px-4 py-2 rounded-lg border focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none ${phoneError ? 'border-rose-300' : 'border-slate-200'}`}
-              placeholder="e.g. 0123456789"
+              className="w-full px-4 py-2 rounded-lg border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
+              placeholder="Optional"
             />
           </div>
           <div>
@@ -84,15 +68,11 @@ export function CustomerModal({ isOpen, onClose, onSubmit, selectedCustomer, dat
             <input
               name="phoneOther"
               defaultValue={selectedCustomer?.phoneOther}
-              onChange={() => phoneError && setPhoneError('')}
-              className={`w-full px-4 py-2 rounded-lg border focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none ${phoneError ? 'border-rose-300' : 'border-slate-200'}`}
-              placeholder="e.g. +86 138 0013 8000"
+              className="w-full px-4 py-2 rounded-lg border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
+              placeholder="Optional"
             />
           </div>
         </div>
-        {phoneError && (
-          <p className="text-sm text-rose-600 -mt-2">{phoneError}</p>
-        )}
 
         {/* IC / Passport */}
         <div>

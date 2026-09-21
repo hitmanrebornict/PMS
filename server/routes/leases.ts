@@ -43,11 +43,12 @@ router.get('/', authenticate, requireViewer, async (_req: AuthRequest, res: Resp
   try {
     // Auto-mark any PENDING invoices whose dueDate has passed as OVERDUE
     await (prisma.invoice.updateMany as any)({
-      where: { status: 'PENDING', dueDate: { lt: new Date() } },
+      where: { status: 'PENDING', dueDate: { lt: new Date() }, lease: { isActive: true } },
       data: { status: 'OVERDUE' },
     });
 
     const leases: any[] = await (prisma.leaseAgreement.findMany as any)({
+      where: { isActive: true },
       include: {
         customer: { select: { id: true, name: true, phoneLocal: true, icPassport: true, whatsappNumber: true } },
         company:  { select: { id: true, name: true, phone: true, whatsappNumber: true } },
@@ -78,8 +79,8 @@ router.get('/', authenticate, requireViewer, async (_req: AuthRequest, res: Resp
 
 router.get('/:id', authenticate, requireViewer, async (req: AuthRequest, res: Response) => {
   try {
-    const lease: any = await (prisma.leaseAgreement.findUnique as any)({
-      where: { id: req.params.id },
+    const lease: any = await (prisma.leaseAgreement.findFirst as any)({
+      where: { id: req.params.id, isActive: true },
       include: {
         customer: {
           select: {
@@ -128,8 +129,8 @@ router.patch('/:id/terminate', authenticate, requireManager, async (req: AuthReq
 
   try {
     const result = await prisma.$transaction(async (tx) => {
-      const lease = await tx.leaseAgreement.findUnique({
-        where: { id: req.params.id },
+      const lease = await tx.leaseAgreement.findFirst({
+        where: { id: req.params.id, isActive: true },
       });
 
       if (!lease) throw new Error('NOT_FOUND');
@@ -210,8 +211,8 @@ router.patch('/:id/terminate', authenticate, requireManager, async (req: AuthReq
 router.patch('/:id/complete', authenticate, requireManager, async (req: AuthRequest, res: Response) => {
   try {
     const result = await prisma.$transaction(async (tx) => {
-      const lease = await tx.leaseAgreement.findUnique({
-        where: { id: req.params.id },
+      const lease = await tx.leaseAgreement.findFirst({
+        where: { id: req.params.id, isActive: true },
       });
 
       if (!lease) throw new Error('NOT_FOUND');
@@ -267,7 +268,7 @@ router.patch('/:id', authenticate, requireManager, async (req: AuthRequest, res:
   }
 
   try {
-    const existing = await prisma.leaseAgreement.findUnique({ where: { id: req.params.id } });
+    const existing = await prisma.leaseAgreement.findFirst({ where: { id: req.params.id, isActive: true } });
     if (!existing) {
       res.status(404).json({ error: 'Lease not found' });
       return;
@@ -391,6 +392,62 @@ router.patch('/:id', authenticate, requireManager, async (req: AuthRequest, res:
   }
 });
 
+// ─── DELETE /:id — Soft-delete a lease ────────────────────────────────────
+// Sets isActive = false, hiding the lease (and therefore its invoices, deposit
+// and timeline bar) everywhere. Refused once money has changed hands, because
+// removing paid invoices would silently rewrite Profit, Profit Sharing and
+// Investment ROI figures for months that may already be closed.
+
+router.delete('/:id', authenticate, requireManager, async (req: AuthRequest, res: Response) => {
+  try {
+    const lease: any = await (prisma.leaseAgreement.findFirst as any)({
+      where: { id: req.params.id, isActive: true },
+      include: {
+        deposit:  { select: { status: true } },
+        invoices: { select: { status: true, paidAmount: true } },
+      },
+    });
+    if (!lease) {
+      res.status(404).json({ error: 'Lease not found' });
+      return;
+    }
+
+    const paidCount = lease.invoices.filter(
+      (inv: any) => inv.status === 'PAID' || Number(inv.paidAmount ?? 0) > 0,
+    ).length;
+    if (paidCount > 0) {
+      res.status(409).json({
+        error: `Cannot delete: ${paidCount} invoice(s) on this lease have already been paid. Terminate the lease instead so the payment history is kept.`,
+      });
+      return;
+    }
+
+    if (lease.deposit && (lease.deposit.status === 'HELD' || lease.deposit.status === 'PARTIALLY_HELD')) {
+      res.status(409).json({
+        error: 'Cannot delete: a deposit is still held for this lease. Refund or forfeit it first, then delete.',
+      });
+      return;
+    }
+
+    await prisma.$transaction(async (tx: any) => {
+      await tx.leaseAgreement.update({
+        where: { id: lease.id },
+        data:  { isActive: false },
+      });
+      // Free the asset — an ACTIVE lease is what marked it OCCUPIED.
+      if (lease.status === 'ACTIVE') {
+        if (lease.unitId)    await tx.unit.update({ where: { id: lease.unitId },    data: { status: 'VACANT' } });
+        if (lease.carparkId) await tx.carpark.update({ where: { id: lease.carparkId }, data: { status: 'VACANT' } });
+      }
+    });
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Delete lease error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // ─── POST /:id/invoices — Add a new invoice to a lease ───────────────────
 
 const addInvoiceSchema = z.object({
@@ -408,7 +465,7 @@ router.post('/:id/invoices', authenticate, requireManager, async (req: AuthReque
   }
 
   try {
-    const lease = await prisma.leaseAgreement.findUnique({ where: { id: req.params.id } });
+    const lease = await prisma.leaseAgreement.findFirst({ where: { id: req.params.id, isActive: true } });
     if (!lease) {
       res.status(404).json({ error: 'Lease not found' });
       return;
@@ -523,7 +580,9 @@ invoicesRouter.patch('/:id', authenticate, requireManager, async (req: AuthReque
   }
 
   try {
-    const invoice = await prisma.invoice.findUnique({ where: { id: req.params.id } });
+    const invoice = await (prisma.invoice.findFirst as any)({
+      where: { id: req.params.id, lease: { isActive: true } },
+    });
     if (!invoice) {
       res.status(404).json({ error: 'Invoice not found' });
       return;
@@ -566,7 +625,9 @@ invoicesRouter.patch('/:id/pay', authenticate, requireManager, async (req: AuthR
 
   try {
     const { Decimal } = await import('@prisma/client/runtime/library');
-    const invoice = await prisma.invoice.findUnique({ where: { id: req.params.id } }) as any;
+    const invoice = await (prisma.invoice.findFirst as any)({
+      where: { id: req.params.id, lease: { isActive: true } },
+    }) as any;
     if (!invoice) {
       res.status(404).json({ error: 'Invoice not found' });
       return;
@@ -758,7 +819,9 @@ depositsRouter.patch('/:id', authenticate, requireManager, async (req: AuthReque
 
   try {
     const { Decimal } = await import('@prisma/client/runtime/library');
-    const deposit = await prisma.leaseDeposit.findUnique({ where: { id: req.params.id } }) as any;
+    const deposit = await (prisma.leaseDeposit.findFirst as any)({
+      where: { id: req.params.id, lease: { isActive: true } },
+    }) as any;
     if (!deposit) {
       res.status(404).json({ error: 'Deposit not found' });
       return;

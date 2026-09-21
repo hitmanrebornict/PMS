@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { FileText, Search, X, AlertCircle } from 'lucide-react';
+import { FileText, Search, X, AlertCircle, Trash2 } from 'lucide-react';
 import { Lease, LeaseStatusType, DepositStatusType } from '../../types';
 
 function WhatsAppIcon({ size = 14 }: { size?: number }) {
@@ -19,6 +19,7 @@ function openWhatsApp(number: string | null | undefined, message: string) {
 interface LeasesPageProps {
   leases: Lease[];
   onViewDetail: (lease: Lease) => void;
+  onDelete: (lease: Lease) => void;
 }
 
 const STATUS_FILTERS: { label: string; value: LeaseStatusType | 'ALL' }[] = [
@@ -49,7 +50,7 @@ function formatDate(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
 }
 
-function LeaseTable({ rows, onViewDetail }: { rows: Lease[]; onViewDetail: (l: Lease) => void }) {
+function LeaseTable({ rows, onViewDetail, onDelete }: { rows: Lease[]; onViewDetail: (l: Lease) => void; onDelete: (l: Lease) => void }) {
   if (rows.length === 0) return null;
   return (
     <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
@@ -64,6 +65,7 @@ function LeaseTable({ rows, onViewDetail }: { rows: Lease[]; onViewDetail: (l: L
               <th className="text-right px-4 py-3 font-semibold text-slate-600">Amount</th>
               <th className="text-center px-4 py-3 font-semibold text-slate-600">Deposit</th>
               <th className="text-center px-4 py-3 font-semibold text-slate-600">Status</th>
+              <th className="w-10 px-2 py-3"><span className="sr-only">Actions</span></th>
             </tr>
           </thead>
           <tbody>
@@ -165,6 +167,15 @@ function LeaseTable({ rows, onViewDetail }: { rows: Lease[]; onViewDetail: (l: L
                     )}
                   </div>
                 </td>
+                <td className="px-2 py-3 text-center">
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onDelete(lease); }}
+                    className="p-1.5 text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded transition-colors cursor-pointer"
+                    title="Delete lease"
+                  >
+                    <Trash2 size={15} />
+                  </button>
+                </td>
               </tr>
             ))}
           </tbody>
@@ -174,7 +185,7 @@ function LeaseTable({ rows, onViewDetail }: { rows: Lease[]; onViewDetail: (l: L
   );
 }
 
-export function LeasesPage({ leases, onViewDetail }: LeasesPageProps) {
+export function LeasesPage({ leases, onViewDetail, onDelete }: LeasesPageProps) {
   const [statusFilter, setStatusFilter] = useState<LeaseStatusType | 'ALL'>('ALL');
   const [search, setSearch] = useState('');
   const [dateFrom, setDateFrom] = useState('');
@@ -286,7 +297,7 @@ export function LeasesPage({ leases, onViewDetail }: LeasesPageProps) {
           <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wide px-1">
             Property Units ({unitLeases.length})
           </h2>
-          <LeaseTable rows={unitLeases} onViewDetail={onViewDetail} />
+          <LeaseTable rows={unitLeases} onViewDetail={onViewDetail} onDelete={onDelete} />
         </div>
       )}
 
@@ -296,7 +307,7 @@ export function LeasesPage({ leases, onViewDetail }: LeasesPageProps) {
           <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wide px-1">
             Carparks ({carparkLeases.length})
           </h2>
-          <LeaseTable rows={carparkLeases} onViewDetail={onViewDetail} />
+          <LeaseTable rows={carparkLeases} onViewDetail={onViewDetail} onDelete={onDelete} />
         </div>
       )}
     </div>
