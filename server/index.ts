@@ -24,6 +24,7 @@ import ownersRouter from './routes/owners.js';
 import ownerAgreementsRouter from './routes/ownerAgreements.js';
 import investmentAnalysisRouter from './routes/investmentAnalysis.js';
 import profitSharingRouter from './routes/profitSharing.js';
+import { syncLeaseStatuses } from './services/leaseStatus.service.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -105,10 +106,30 @@ if (isProd) {
   });
 }
 
+// ─── Scheduled lease status sync ──────────────────────────────────────────────
+// Leases start on a date, so something has to notice when that date arrives.
+// Runs on boot and hourly; also invoked by GET /api/leases so the UI is correct
+// the moment someone looks, rather than up to an hour later.
+
+const LEASE_SYNC_INTERVAL_MS = 60 * 60 * 1000;
+
+async function runLeaseSync() {
+  try {
+    const { activated, overdue } = await syncLeaseStatuses();
+    if (activated || overdue) {
+      console.log(`🔄 Lease sync: ${activated} activated, ${overdue} invoice(s) marked overdue`);
+    }
+  } catch (err) {
+    console.error('Lease status sync failed:', err);
+  }
+}
+
 // ─── Start ────────────────────────────────────────────────────────────────────
 
 app.listen(PORT, () => {
   console.log(`✅ Server running on port ${PORT} (${isProd ? 'production' : 'development'})`);
+  void runLeaseSync();
+  setInterval(runLeaseSync, LEASE_SYNC_INTERVAL_MS);
 });
 
 export default app;

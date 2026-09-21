@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, Suspense, lazy } from 'react';
 import { Building2, Menu } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -27,10 +27,13 @@ import { CompaniesPage }         from './pages/manage/CompaniesPage';
 import { LeasesPage }            from './pages/manage/LeasesPage';
 import { UsersPage }        from './pages/manage/UsersPage';
 import { ExpensesPage }     from './pages/manage/ExpensesPage';
-import { ProfitPage }       from './pages/manage/ProfitPage';
+// Chart-heavy pages are split out: recharts is ~370 kB and only these two use it.
+const ProfitPage = lazy(() =>
+  import('./pages/manage/ProfitPage').then(m => ({ default: m.ProfitPage })));
 import { DataSourcesPage }  from './pages/manage/DataSourcesPage';
 import { InvestmentsPage }       from './pages/manage/InvestmentsPage';
-import { InvestmentProfitPage } from './pages/manage/InvestmentProfitPage';
+const InvestmentProfitPage = lazy(() =>
+  import('./pages/manage/InvestmentProfitPage').then(m => ({ default: m.InvestmentProfitPage })));
 import { OwnerAgreementsPage }  from './pages/manage/OwnerAgreementsPage';
 import { ProfitSharingPage }    from './pages/manage/ProfitSharingPage';
 
@@ -761,7 +764,15 @@ export default function App() {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
             >
-              {pageContent[activeTab]}
+              <Suspense
+                fallback={
+                  <div className="flex items-center justify-center py-24">
+                    <div className="w-7 h-7 border-2 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" />
+                  </div>
+                }
+              >
+                {pageContent[activeTab]}
+              </Suspense>
             </motion.div>
           </AnimatePresence>
         </div>

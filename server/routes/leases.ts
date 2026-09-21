@@ -5,6 +5,7 @@ import prisma from '../lib/prisma.js';
 import { authenticate, AuthRequest } from '../middleware/authenticate.js';
 import { requireViewer, requireManager } from '../middleware/authorize.js';
 import { checkConflict, generateInvoiceData, calculateTotalAmount } from '../services/lease.service.js';
+import { syncLeaseStatuses } from '../services/leaseStatus.service.js';
 
 const router = Router();
 
@@ -41,11 +42,10 @@ function serializeLease(lease: any) {
 
 router.get('/', authenticate, requireViewer, async (_req: AuthRequest, res: Response) => {
   try {
-    // Auto-mark any PENDING invoices whose dueDate has passed as OVERDUE
-    await (prisma.invoice.updateMany as any)({
-      where: { status: 'PENDING', dueDate: { lt: new Date() }, lease: { isActive: true } },
-      data: { status: 'OVERDUE' },
-    });
+    // Bring clock-dependent state up to date before listing: promotes any
+    // UPCOMING lease whose start date has arrived (and marks its asset
+    // OCCUPIED) and flags past-due PENDING invoices as OVERDUE.
+    await syncLeaseStatuses();
 
     const leases: any[] = await (prisma.leaseAgreement.findMany as any)({
       where: { isActive: true },

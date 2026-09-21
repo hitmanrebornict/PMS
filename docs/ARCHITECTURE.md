@@ -99,7 +99,8 @@ PMS/
 │   └── services/
 │       ├── auth.service.ts    # bcrypt, JWT, refresh-token rotation, lockout, reset tokens
 │       ├── lease.service.ts   # conflict check, invoice generation, totals, createLease()
-│       └── ownerAgreement.service.ts  # monthly owner-payment expense generation / voiding
+│       ├── ownerAgreement.service.ts  # monthly owner-payment expense generation / voiding
+│       └── leaseStatus.service.ts     # the one scheduled job: activate due leases, flag overdue invoices
 ├── src/                       # React 19 + TypeScript + Tailwind 4 (Vite)
 │   ├── main.tsx               # router: /, /login, /manage, * → /
 │   ├── App.tsx                # the management shell: all shared state, handlers, modals, tab map
@@ -273,7 +274,7 @@ The month step is `new Date(y, m + 1, d)` in **server local time** — see §9.7
 stateDiagram-v2
   [*] --> UPCOMING : booked, start > today
   [*] --> ACTIVE : booked, start ≤ today
-  UPCOMING --> ACTIVE : PATCH /leases/:id with start ≤ today  (no automatic transition!)
+  UPCOMING --> ACTIVE : start date arrives (syncLeaseStatuses) or PATCH /leases/:id
   ACTIVE --> UPCOMING : PATCH /leases/:id with start > today
   UPCOMING --> TERMINATED : PATCH /terminate
   ACTIVE --> TERMINATED : PATCH /terminate
@@ -290,7 +291,7 @@ Side effects on the **asset** (`unit.status` / `carpark.status`):
 | ACTIVE → UPCOMING (edit) | VACANT |
 | → TERMINATED / COMPLETED | VACANT |
 
-Nothing else touches asset status. **There is no scheduler**, so an UPCOMING lease whose start date has passed stays UPCOMING with a VACANT unit until a manager edits it (§9.1).
+Nothing else touches asset status. `syncLeaseStatuses()` promotes UPCOMING → ACTIVE (and marks the asset OCCUPIED) once the start date arrives — see §9.1. **Completion is still manual**: a lease past its `endDate` stays ACTIVE with its unit OCCUPIED until someone terminates or completes it.
 
 **Terminate** accepts an optional `terminationDate` (inclusive of both lease bounds). It sets `endDate` to that date and cancels **PENDING** invoices whose `periodStart` is after it. OVERDUE invoices are *not* cancelled (§9.6).
 
@@ -403,6 +404,16 @@ Saving (`POST /records`) upserts the record for that `(unit, month, year)`, dele
 `src/main.tsx` defines only three routes: `/` (landing), `/login`, `/manage` (protected). Everything inside the management app is a **tab**, not a route: `App.tsx` holds `activeTab` and renders `pageContent[activeTab]`. Adding a page means touching four places — the `ActiveTab` union and a `SidebarItem` in `ManageSidebar.tsx`, the `pageContent` map and any state/handlers in `App.tsx`.
 
 `PROFIT_SHARING` users are pinned to the `profitSharing` tab in code (`App.tsx:57-64`) and see a reduced sidebar.
+
+**Code splitting.** Three lazy boundaries keep the initial download small:
+
+| Chunk | Size | Fetched when |
+|---|---|---|
+| `index` | ~413 kB | always (landing, login, router, shared libs) |
+| `App` | ~248 kB | the user reaches `/manage` |
+| `CartesianChart` (recharts) + the two chart pages | ~430 kB | the user opens Profit or Investment ROI |
+
+Before this split every visitor to the public landing page downloaded all 1,089 kB — the whole admin app and the charting library — to read the marketing copy. Each boundary needs a `<Suspense>` fallback: `main.tsx` wraps `App`, and `App.tsx` wraps the `pageContent` map. `lazy()` needs a default export, so the named page exports are adapted with `.then(m => ({ default: m.X }))`.
 
 ### 6.2 Data flow
 
@@ -562,21 +573,23 @@ See `.env.example`. `JWT_ACCESS_SECRET` must be ≥ 32 chars. `CLIENT_URL` is us
 
 These are the non-obvious decisions that will surprise you. Each entry says what the behaviour is, why it matters, where it lives, and what to do when you touch it.
 
-### 9.1 There is no scheduler — time-based state is lazy or absent
+### 9.1 Only two things advance with the clock — everything else is manual
 
-Nothing runs on a timer. Grep for `cron`, `setInterval`, `schedule` in `server/` returns nothing.
+There is exactly one scheduled job: `syncLeaseStatuses()` in `server/services/leaseStatus.service.ts`. It runs on server boot, hourly via `setInterval` in `server/index.ts`, and again at the top of `GET /api/leases` so the UI is correct the moment someone looks rather than up to an hour later. It is idempotent.
 
-| State that depends on the clock | How it actually changes |
+| State that depends on the clock | How it changes |
 |---|---|
-| `Invoice.status` PENDING → **OVERDUE** | **Only** as a side effect of `GET /api/leases` (`leases.ts:44-48`), i.e. when someone opens the Leases page. |
-| `LeaseAgreement.status` UPCOMING → **ACTIVE** | **Never automatically.** Computed at create (`lease.service.ts:161-165`) and at `PATCH /leases/:id` (`leases.ts:316-318`). |
-| `LeaseAgreement.status` ACTIVE → **COMPLETED** | Manual `PATCH /complete` only. |
-| `Unit.status` VACANT ↔ OCCUPIED | Only by the lease transitions in §5.3. |
+| `LeaseAgreement.status` UPCOMING → **ACTIVE** (+ asset OCCUPIED) | `syncLeaseStatuses()` — automatic. Also computed at create and at `PATCH /leases/:id`. |
+| `Invoice.status` PENDING → **OVERDUE** | `syncLeaseStatuses()` — automatic. |
+| `LeaseAgreement.status` ACTIVE → **COMPLETED** | **Manual** `PATCH /complete` only. A lease past its `endDate` stays ACTIVE and its unit stays OCCUPIED indefinitely. |
+| `Unit.status` OCCUPIED → **VACANT** | Only on terminate / complete / delete (§5.3). Never by the end date passing. |
 | `OwnerAgreement.status` → **COMPLETED** | Enum value exists; **no code sets it**. |
 | `Investment.status` → MATURED | Manual edit only. |
 | Expired `RefreshToken` rows | Never purged. |
 
-**What to do:** never assume a status is current. If you add a report that depends on OVERDUE, either call the same `updateMany` first or compute overdue-ness from `dueDate` at read time. If you add a scheduler, the lease UPCOMING→ACTIVE promotion (and the unit OCCUPIED flip) is the first thing it should do.
+**Why completion is deliberately excluded:** COMPLETED means an operator confirmed the tenancy ended and settled the deposit. That is a judgement call, not a date comparison, so the sync does not guess it. The consequence is the mirror of the bug it fixes — **a finished lease keeps its unit marked OCCUPIED until someone closes it**. If that becomes a problem, the decision to make is whether "end date passed" should auto-complete, auto-vacate the asset only, or just raise a warning in the UI.
+
+**What to do:** the sync is the place for any new clock-driven rule. Keep additions idempotent — it runs on every Leases page load.
 
 ### 9.2 Profit is derived, three times, with two clocks
 
@@ -674,7 +687,7 @@ Found while reading the code for this document. Each is verified against the sou
 
 | # | Where | Defect | Effect |
 |---|---|---|---|
-| 1 | `server/routes/reminders.ts:37-38`, `:91` | `invoice.lease.customer.email` — `customer` is `null` for company leases | The **whole** `/reminders/rental` (or `/lease`) call throws and returns 500 as soon as one company lease qualifies; no emails are sent to anyone. |
+| 1 | ~~`server/routes/reminders.ts` null-deref on company leases~~ | **Fixed** Sept 2026 — `resolveRecipient()` falls back to the company, tenants with no email are skipped and counted, and each send is individually try/caught so one bad address cannot abort the batch. | — |
 | 2 | ~~`prisma/seed.ts` created the admin without `username`~~ | **Fixed** Sept 2026 — seeds `username: 'admin'` and matches on username **or** email so re-runs stay idempotent even if the email was later cleared. | — |
 | 3 | `src/main.tsx` | No `/forgot-password` or `/reset-password` routes; the catch-all redirects to `/` | The login page's "Forgot password" link and the emailed reset link both land on the marketing page. Backend endpoints work; the UI does not exist. |
 | 4 | `server/routes/leases.ts:161-164` | Terminate cancels only `PENDING` invoices | `OVERDUE` invoices after the termination date survive as open receivables. |
