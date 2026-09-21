@@ -52,6 +52,7 @@ router.get('/timeline', authenticate, requireViewer, async (req: AuthRequest, re
     // Fetch overlapping leases
     const leases: any[] = await (prisma.leaseAgreement.findMany as any)({
       where: {
+        isActive: true,
         status: { in: ['ACTIVE', 'UPCOMING'] },
         startDate: { lt: endDate },
         endDate: { gt: startDate },

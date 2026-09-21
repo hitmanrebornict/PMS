@@ -8,7 +8,7 @@ interface CreateLeaseInput {
   customer?: {
     icPassport: string;
     name: string;
-    phoneLocal: string;
+    phoneLocal?: string;   // optional — a tenant may be recorded without a phone
     email?: string;
     currentAddress?: string;
   };
@@ -49,6 +49,7 @@ export async function checkConflict(
   excludeLeaseId?: string,
 ): Promise<boolean> {
   const where: any = {
+    isActive: true,
     status: { in: ['ACTIVE', 'UPCOMING'] as LeaseStatus[] },
     startDate: { lt: endDate },
     endDate: { gt: startDate },
@@ -147,6 +148,7 @@ export async function createLease(input: CreateLeaseInput) {
   return prisma.$transaction(async (tx) => {
     // 1. Conflict check
     const conflictWhere: any = {
+      isActive: true,
       status: { in: ['ACTIVE', 'UPCOMING'] as LeaseStatus[] },
       startDate: { lt: endDate },
       endDate: { gt: startDate },
@@ -177,7 +179,9 @@ export async function createLease(input: CreateLeaseInput) {
         },
         create: {
           name: customer.name,
-          phoneLocal: customer.phoneLocal,
+          // phoneLocal is NOT NULL in the schema. On update an omitted value is
+          // left untouched, so booking without a phone never wipes one on file.
+          phoneLocal: customer.phoneLocal ?? '',
           icPassport: customer.icPassport,
           email: customer.email || null,
           currentAddress: customer.currentAddress || '',

@@ -167,7 +167,7 @@ erDiagram
 | **Customer** | An individual tenant or investor. `icPassport` is globally unique and is the identity used for upsert during booking (§9.4). `customerNo` is a display-only serial. |
 | **Company** | A corporate tenant. No unique natural key. |
 | **DataSource** | Marketing channel (e.g. "Xiaohongshu"). Optional FK from Customer and Company. |
-| **LeaseAgreement** | The central record. `customerId` **xor** `companyId`; `unitId` **xor** `carparkId` (enforced in code, not the schema). `totalAmount` is a *snapshot* computed at create/edit. `promotionAmount` is a per-period discount; `cleaningFee` is a per-period cost. Leases are never deleted — only their `status` changes. |
+| **LeaseAgreement** | The central record. `customerId` **xor** `companyId`; `unitId` **xor** `carparkId` (enforced in code, not the schema). `totalAmount` is a *snapshot* computed at create/edit. `promotionAmount` is a per-period discount; `cleaningFee` is a per-period cost. Normally only `status` changes; `isActive = false` soft-deletes a lease booked by mistake, and is refused once any payment exists (§5.3). |
 | **LeaseDeposit** | Exactly one per lease. Tracks `receivedAmount` / `refundedAmount` with six statuses. |
 | **Invoice** | One per billing period. `amount` is already net of promotion. `paidAmount` supports partial payment; `status` becomes PAID only when fully paid. |
 | **Expense** | Always belongs to a **unit**. `expenseDate` drives every report. `status`/`dueDate`/`paidAt`/`ownerAgreementId` exist for generated owner payments; ordinary expenses leave them at defaults. |
@@ -189,8 +189,8 @@ This is one of the most important things to internalise:
 
 | Mechanism | Applies to |
 |---|---|
-| **Soft delete** — `DELETE` sets `isActive = false`; every list query filters `isActive: true` | Customer, Company, DataSource, MasterProperty (+ its Units), Unit, Carpark, ExpenseType, Expense, Owner, OwnerAgreement, Investment, User (via `isActive` on update) |
-| **Status only, never deleted** | LeaseAgreement (UPCOMING / ACTIVE / TERMINATED / COMPLETED), LeaseDeposit, ProfitSharingRecord |
+| **Soft delete** — `DELETE` sets `isActive = false`; every list query filters `isActive: true` | Customer, Company, DataSource, MasterProperty (+ its Units), Unit, Carpark, ExpenseType, Expense, Owner, OwnerAgreement, Investment, User (via `isActive` on update), LeaseAgreement (guarded — §5.3) |
+| **Status only, never deleted** | LeaseDeposit, ProfitSharingRecord. A lease's own lifecycle is still `status` (UPCOMING / ACTIVE / TERMINATED / COMPLETED); deleting is the escape hatch for a mistaken booking, not a lifecycle step. |
 | **Hard delete** | Invoice — but *only* as a side effect of editing a lease's dates/price (§9.6); File; UnitShare (replaced wholesale); ProfitSharingAllocation (recreated on re-save) |
 
 Consequences:
@@ -294,6 +294,13 @@ Nothing else touches asset status. **There is no scheduler**, so an UPCOMING lea
 
 **Terminate** accepts an optional `terminationDate` (inclusive of both lease bounds). It sets `endDate` to that date and cancels **PENDING** invoices whose `periodStart` is after it. OVERDUE invoices are *not* cancelled (§9.6).
 
+**Delete** (`DELETE /api/leases/:id`, MANAGER) is separate from the status lifecycle — it is the escape hatch for a booking entered by mistake, not a way to end a tenancy. It sets `isActive = false`, which hides the lease, its invoices and its deposit from every list, report and the timeline, and frees the asset to `VACANT` if the lease was ACTIVE. It is **refused with 409** when:
+
+- any invoice is `PAID` **or** carries a partial `paidAmount` — deleting would rewrite already-reported income; terminate instead; or
+- the deposit is `HELD` / `PARTIALLY_HELD` — refund or forfeit it first, so tenant money is accounted for.
+
+Because the conflict check also filters `isActive`, a deleted lease stops blocking its dates and the asset can be re-booked immediately. **Cleaning-fee expenses generated at booking are not removed** — `Expense` has no `leaseId`, so they cannot be traced back; delete them from the Expenses page if needed (§9.3). Rows are never physically removed, so a mistaken delete is recoverable with a direct `UPDATE lease_agreements SET "isActive" = true`.
+
 ### 5.4 Invoice and deposit state machines
 
 ```mermaid
@@ -356,10 +363,10 @@ There is no stored ledger. Every report re-reads live rows. Three separate endpo
 
 | | `/api/profit` (+ `/monthly`, `/monthly/roomtype`) | `/api/investment-analysis` | `/api/profit-sharing/:unitId/calculate` & `/records` |
 |---|---|---|---|
-| **Income** | `Invoice.status = PAID` and `paidAt` in range → `amount` | same | same, for one unit |
+| **Income** | `Invoice.status = PAID` and **`paidAt`** in range → `amount` | same | `Invoice.status = PAID` and **`periodStart`** in range → `amount` (§5.7) |
 | **Expenses** | `Expense.isActive` and `expenseDate` in range → `amount`, **any status** | same | same |
 | **Carparks** | carpark-lease invoices summed separately (no expenses) | n/a (units only) | n/a |
-| **Month boundaries** | **UTC** (`Date.UTC`) | **UTC** | **server local time** (`new Date(year, month−1, 1)`) — §9.8 |
+| **Month boundaries** | **UTC** (`Date.UTC`) | **UTC** | **UTC** (`monthBounds()`) |
 | **Extra rule** | none | cumulative net since earliest investment start; break-even when cumulative ≥ total capital | guarantee fee (§5.7) and percentage split |
 | **File** | `profit.ts` | `investmentAnalysis.ts` | `profitSharing.ts` |
 
@@ -375,7 +382,7 @@ Implications:
 For a unit, a month, and a year (`profitSharing.ts:191-318` live; `321-448` save):
 
 ```
-totalSales    = Σ PAID invoice.amount with paidAt in month
+totalSales    = Σ PAID invoice.amount with periodStart in month   ← billing period, NOT payment date
 totalExpenses = Σ active expense.amount with expenseDate in month
 netProfit     = totalSales − totalExpenses
 guaranteeFee  = unit.guaranteeFee ?? 0
@@ -486,7 +493,7 @@ requireProfitSharingOrViewer   // PROFIT_SHARING  OR  level ≥ VIEWER
 | `/api/inventory/customers/search?q=` | GET | Viewer | name / phone / IC, max 10 |
 | `/api/bookings` | POST | Manager | creates lease + deposit + invoices (+ cleaning expenses) |
 | `/api/leases` | GET | Viewer | **side effect: marks past-due PENDING invoices OVERDUE** |
-| `/api/leases/:id` | GET, PATCH | Viewer / Manager | PATCH regenerates invoices when dates/price change |
+| `/api/leases/:id` | GET, PATCH, DELETE | Viewer / Manager | PATCH regenerates invoices when dates/price change. DELETE soft-deletes, refused once any invoice is paid or a deposit is held (§5.3) |
 | `/api/leases/:id/terminate`, `/complete` | PATCH | Manager | |
 | `/api/leases/:id/invoices` | GET, POST | Viewer / Manager | POST adds a manual invoice |
 | `/api/leases/:id/files[/:fileId]` | GET, DELETE | Viewer / Manager | |
@@ -575,7 +582,8 @@ Nothing runs on a timer. Grep for `cron`, `setInterval`, `schedule` in `server/`
 
 Covered in §5.6. The parts to be careful with:
 
-- **`profitSharing.ts` uses server-local month boundaries** (`new Date(year, month - 1, 1)`, lines 214–215 and 342–343) while `profit.ts` and `investmentAnalysis.ts` use `Date.UTC`. If the server runs in UTC (Docker default) they agree; if it runs in Asia/Kuala_Lumpur, an invoice paid at 02:00 MYT on the 1st belongs to the previous month in `/api/profit` but the current month in profit sharing.
+- **Profit Sharing dates income by billing period; the other two date it by payment.** `profitSharing.ts` filters `Invoice.periodStart` into the month, so rent for a period starting 9 Sep counts in September even when paid on 10 Oct. `profit.ts` and `investmentAnalysis.ts` still filter on `paidAt`, so the same payment lands in October there. **The two will not reconcile** — this is intentional (requested Sept 2026), not a bug. All three now use UTC month boundaries.
+- Because the paid-only rule was kept, a late payment **retroactively changes a closed month** in Profit Sharing. A September cutoff saved and paid out in early October will grow if a September-period invoice is settled on 10 October; the record must be re-saved to pick it up.
 - **Expense status is ignored** by all three. Future PENDING owner payments count now.
 - **Partial payments are invisible** until fully paid (§5.4).
 - The guarantee-fee rule (§5.7) is duplicated in two handlers; change both.
@@ -672,7 +680,7 @@ Found while reading the code for this document. Each is verified against the sou
 | 4 | `server/routes/leases.ts:161-164` | Terminate cancels only `PENDING` invoices | `OVERDUE` invoices after the termination date survive as open receivables. |
 | 5 | `server/routes/leases.ts:334-354` | Date/price edit hard-deletes and regenerates invoices without reconciling PAID periods or cleaning-fee expenses | Duplicate periods next to paid invoices; orphaned cleaning-fee expenses; manual invoice edits lost. (§9.6) |
 | 6 | `server/services/lease.service.ts:96` | Month stepping by `new Date(y, m+1, d)` | Periods drift for start days 29–31. (§9.7) |
-| 7 | `server/routes/profitSharing.ts:214-215`, `:342-343` | Local-time month boundaries | Disagrees with `/api/profit` when the server TZ ≠ UTC. (§9.2) |
+| 7 | ~~`server/routes/profitSharing.ts` local-time month boundaries~~ | **Fixed** Sept 2026 — `monthBounds()` builds the window in UTC. | — |
 | 8 | `src/components/layout/ManageSidebar.tsx:19`, `:96-101` | `ADMIN` is shown the User Management tab | API rejects with 403. |
 | 9 | `src/components/manage/LeaseDetailModal.tsx:411-425` + `src/hooks/useApi.ts:11` | FormData sent with `Content-Type: application/json` | Lease document upload very likely fails with `400 No file uploaded`. Verify. |
 | 10 | `server/routes/upload.ts:87` | `GET /api/upload/:id` has no `authorize` | Any authenticated role can download any file. |

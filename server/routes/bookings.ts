@@ -15,7 +15,7 @@ const createLeaseSchema = z.object({
   customer: z.object({
     icPassport:     z.string().min(1),
     name:           z.string().min(1),
-    phoneLocal:     z.string().min(1),
+    phoneLocal:     z.string().optional(),
     email:          z.string().email().optional(),
     currentAddress: z.string().optional(),
   }).optional(),

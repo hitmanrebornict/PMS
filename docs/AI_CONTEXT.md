@@ -24,7 +24,7 @@
 Read these before touching anything. Each has a section reference for the reasoning.
 
 1. **Never add a hard `delete` for a soft-deleted model.** Customer, Company, DataSource, MasterProperty, Unit, Carpark, ExpenseType, Expense, Owner, OwnerAgreement, Investment use `isActive=false`. Every list query must filter `isActive: true`. (§4.3 of ARCHITECTURE)
-2. **Leases are never deleted.** They move through `status`. Invoices are hard-deleted in exactly one place (lease date/price edit) and you should not add a second.
+2. **Leases end via `status`, not deletion.** `DELETE /api/leases/:id` exists only to undo a mistaken booking: it soft-deletes (`isActive = false`) and is refused once any invoice is paid or a deposit is held. Never hard-delete a lease. Invoices are hard-deleted in exactly one place (lease date/price edit) and you should not add a second. **Any new query that reads leases — directly or through `lease: { … }` — must filter `isActive: true`.**
 3. **Do not rename or reuse the expense types `"Cleaning Fee"` and `"Owner Payment"`.** They are upserted by name in `lease.service.ts` and `ownerAgreement.service.ts`.
 4. **If you change what counts as income or expense, change it in all three calculators:** `server/routes/profit.ts`, `server/routes/investmentAnalysis.ts`, `server/routes/profitSharing.ts` (two handlers). They are copy-pasted, not shared.
 5. **Server date math must use UTC** (`Date.UTC`, `getUTC*`). Existing local-time code in `lease.service.ts`, `leases.ts`, `profitSharing.ts`, `reminders.ts` is a known inconsistency, not a pattern to copy.
@@ -106,7 +106,7 @@ docker-compose.yml / .override.yml    app :5000 (override → :5001), postgres "
 | MasterProperty | none | soft; cascades soft to Units | |
 | Unit | `(propertyId, unitNumber)` | soft | `status` VACANT/OCCUPIED/MAINTENANCE managed by lease code; `guaranteeFee` optional |
 | Carpark | `carparkNumber` unique | soft | independent of properties |
-| LeaseAgreement | none | **status only** | `customerId` xor `companyId`; `unitId` xor `carparkId` (code-enforced) |
+| LeaseAgreement | none | `status` + **soft** (guarded) | `customerId` xor `companyId`; `unitId` xor `carparkId` (code-enforced); `isActive=false` only via the guarded DELETE |
 | LeaseDeposit | `leaseId` unique | status only | |
 | Invoice | none | status; **hard-deleted on lease edit** | `amount` net of promotion; `paidAmount` |
 | ExpenseType | `name` unique | soft | magic names: "Cleaning Fee", "Owner Payment" |
@@ -187,6 +187,8 @@ POST  /api/bookings                      M        → createLease (§6.3)
 GET   /api/leases                        V        SIDE EFFECT: PENDING with dueDate<now → OVERDUE
 GET   /api/leases/:id                    V
 PATCH /api/leases/:id                    M        {unitPrice?, startDate?, endDate?, notes?} — regenerates invoices if dates/price
+DELETE /api/leases/:id                   M        soft delete (isActive=false); 409 if any invoice PAID/part-paid or deposit HELD;
+                                                  frees the asset to VACANT; cleaning-fee expenses are NOT removed
 PATCH /api/leases/:id/terminate          M        {terminationDate?} within [start,end]
 PATCH /api/leases/:id/complete           M        ACTIVE only
 GET/POST /api/leases/:id/invoices        V / M
@@ -255,10 +257,13 @@ Numbered so you can cite them. File anchors are approximate.
 - Refresh tokens are never purged.
 
 ### 6.2 Income & expense definition (three copies)
-- Income = `Invoice` with `status='PAID'` and `paidAt` in range, summed by `amount` (not `paidAmount`). Partial payments contribute **nothing** until fully paid, then the full amount on the final payment date.
+- Income in `profit.ts` / `investmentAnalysis.ts` = `Invoice` with `status='PAID'` and **`paidAt`** in range, summed by `amount` (not `paidAmount`).
+- Income in `profitSharing.ts` = `Invoice` with `status='PAID'` and **`periodStart`** in range. Rent for a period starting 9 Sep counts in September even if paid 10 Oct. **Deliberately different from the other two** (requested Sept 2026); they will not reconcile.
+- Partial payments contribute **nothing** until fully paid, then the full amount at once.
+- Every income/expense query filters `lease: { …, isActive: true }`.
 - Expense = `Expense` with `isActive` and `expenseDate` in range, **regardless of `status`** (future PENDING owner payments count now).
 - Promotion reduces invoice `amount`; it is **not** an expense. PDF shows gross = `amount + promotionAmount`.
-- Month boundaries: `profit.ts` UTC; `investmentAnalysis.ts` UTC; `profitSharing.ts` **server-local** (`new Date(year, month-1, 1)` at `:214`, `:342`).
+- Month boundaries: UTC everywhere (`profitSharing.ts` uses the shared `monthBounds()` helper).
 - Guarantee fee: `finalProfit = totalSales >= fee ? net : net - fee` (`profitSharing.ts:247`, `:367`). Whole fee deducted on shortfall, not the gap.
 - Allocation = largest-remainder in cents (`profitSharing.ts:23-33`); sums exactly to `finalProfit`.
 - Saved `ProfitSharingRecord` is a snapshot; re-saving overwrites and rebuilds allocations from **current** shares.
@@ -357,7 +362,8 @@ Content lives in `src/i18n/translations.ts` (both `zh` and `en` keys; `t()` pick
 
 - OVERDUE is set by the Leases list endpoint, nowhere else.
 - UPCOMING never auto-promotes; unit stays VACANT.
-- Three profit calculators; profit-sharing uses local TZ.
+- Three profit calculators; profit-sharing dates income by invoice `periodStart`, the other two by `paidAt` — they do not reconcile, by design.
+- A lease can be soft-deleted; every lease query must filter `isActive: true`, including the booking conflict check.
 - Expense status is ignored by every report.
 - Partial invoice payments are invisible to profit until complete.
 - Booking upserts customer by IC and overwrites name/phone.
@@ -393,7 +399,7 @@ Verified by reading at `3a2e7b8`, not by running. When you encounter one during 
 | 4 | `server/routes/leases.ts:161-164` | Terminate ignores OVERDUE invoices. Add `status: { in: ['PENDING','OVERDUE'] }`. |
 | 5 | `server/routes/leases.ts:334-354` | Edit-regeneration doesn't reconcile PAID periods or cleaning-fee expenses. Business decision needed. |
 | 6 | `server/services/lease.service.ts:96` | Month stepping overflow + local time. |
-| 7 | `server/routes/profitSharing.ts:214-215`, `:342-343` | Local-time month boundaries. Use `Date.UTC`. |
+| 7 | ~~`server/routes/profitSharing.ts` local-time month boundaries~~ | **Fixed** Sept 2026 — `monthBounds()` is UTC. |
 | 8 | `src/components/layout/ManageSidebar.tsx:19` | `isSuperAdmin` includes ADMIN. |
 | 9 | `src/components/manage/LeaseDetailModal.tsx:411-425` + `src/hooks/useApi.ts:11` | FormData sent as `application/json`. Verify; bypass `apiFetch` for multipart. |
 | 10 | `server/routes/upload.ts:87` | No `authorize` on file download. |

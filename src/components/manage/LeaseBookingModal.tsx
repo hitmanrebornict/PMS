@@ -249,7 +249,7 @@ export function LeaseBookingModal({ isOpen, onClose, onSuccess, dataSources = []
               currentAddress: newAddress || undefined,
             };
 
-        if (!customer.icPassport || !customer.name || !customer.phoneLocal) {
+        if (!customer.icPassport || !customer.name) {
           setError('Please fill in all required customer fields');
           setSubmitting(false);
           return;
@@ -445,8 +445,8 @@ export function LeaseBookingModal({ isOpen, onClose, onSuccess, dataSources = []
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs text-slate-500 mb-1">Phone *</label>
-                    <input value={newPhone} onChange={(e) => setNewPhone(e.target.value)} required className={inputClass} placeholder="e.g. 012-3456789" />
+                    <label className="block text-xs text-slate-500 mb-1">Phone</label>
+                    <input value={newPhone} onChange={(e) => setNewPhone(e.target.value)} className={inputClass} placeholder="Optional" />
                   </div>
                   <div>
                     <label className="block text-xs text-slate-500 mb-1">Email</label>
