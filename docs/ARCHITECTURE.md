@@ -86,7 +86,7 @@ PMS/
 ├── prisma/
 │   ├── schema.prisma          # the single source of truth for the data model
 │   ├── migrations/            # applied with `prisma migrate deploy`; see §8.3 for oddities
-│   └── seed.ts                # creates the SUPER_ADMIN user (currently broken — §10)
+│   └── seed.ts                # creates the SUPER_ADMIN user (idempotent)
 ├── server/                    # Express backend (ESM, run with tsx in dev, esbuild-bundled in prod)
 │   ├── index.ts               # app wiring: helmet, CORS, cookies, rate limits, routers, static
 │   ├── lib/
@@ -533,7 +533,7 @@ npm run lint          # tsc --noEmit — the ONLY automated check; there are no 
 npm run build         # Vite build → dist/
 npm run db:migrate    # prisma migrate dev   (needs a reachable DB)
 npm run db:deploy     # prisma migrate deploy
-npm run db:seed       # tsx prisma/seed.ts   (currently fails — §10)
+npm run db:seed       # tsx prisma/seed.ts — creates admin / admin@versahome.com.my; safe to re-run
 ```
 
 ### 8.2 Production image
@@ -675,7 +675,7 @@ Found while reading the code for this document. Each is verified against the sou
 | # | Where | Defect | Effect |
 |---|---|---|---|
 | 1 | `server/routes/reminders.ts:37-38`, `:91` | `invoice.lease.customer.email` — `customer` is `null` for company leases | The **whole** `/reminders/rental` (or `/lease`) call throws and returns 500 as soon as one company lease qualifies; no emails are sent to anyone. |
-| 2 | `prisma/seed.ts:19-26` | Creates the admin user without `username`, which is `NOT NULL` since `20260509000002` | `npm run db:seed` fails on a fresh database. Fix: add `username: 'admin'`. |
+| 2 | ~~`prisma/seed.ts` created the admin without `username`~~ | **Fixed** Sept 2026 — seeds `username: 'admin'` and matches on username **or** email so re-runs stay idempotent even if the email was later cleared. | — |
 | 3 | `src/main.tsx` | No `/forgot-password` or `/reset-password` routes; the catch-all redirects to `/` | The login page's "Forgot password" link and the emailed reset link both land on the marketing page. Backend endpoints work; the UI does not exist. |
 | 4 | `server/routes/leases.ts:161-164` | Terminate cancels only `PENDING` invoices | `OVERDUE` invoices after the termination date survive as open receivables. |
 | 5 | `server/routes/leases.ts:334-354` | Date/price edit hard-deletes and regenerates invoices without reconciling PAID periods or cleaning-fee expenses | Duplicate periods next to paid invoices; orphaned cleaning-fee expenses; manual invoice edits lost. (§9.6) |

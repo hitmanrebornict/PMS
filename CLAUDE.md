@@ -200,7 +200,11 @@ Optional:
 
 ## Default Login
 
-Seeded via `prisma/seed.ts`:
+Seeded via `prisma/seed.ts` (idempotent — safe to re-run):
+- Username: `admin`
 - Email: `admin@versahome.com.my`
 - Password: `Admin@VersaHome2026!`
 - Role: SUPER_ADMIN
+
+Log in with either the username or the email — `POST /api/auth/login` treats an
+`identifier` containing `@` as an email and anything else as a username.

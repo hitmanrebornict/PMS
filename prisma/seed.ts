@@ -6,8 +6,14 @@ const prisma = new PrismaClient();
 async function main() {
   console.log('🌱 Seeding database...');
 
+  const username = 'admin';
   const email = 'admin@versahome.com.my';
-  const exists = await prisma.user.findUnique({ where: { email } });
+
+  // Match on either identifier: username is the required unique key, and email
+  // is optional, so an existing admin may have had its email cleared.
+  const exists = await prisma.user.findFirst({
+    where: { OR: [{ username }, { email }] },
+  });
 
   if (exists) {
     console.log('✅ Super admin already exists, skipping.');
@@ -18,6 +24,7 @@ async function main() {
 
   const user = await prisma.user.create({
     data: {
+      username,
       email,
       passwordHash,
       name: 'Super Admin',
@@ -25,7 +32,8 @@ async function main() {
     },
   });
 
-  console.log(`✅ Super admin created: ${user.email}`);
+  console.log(`✅ Super admin created: ${user.username} (${user.email})`);
+  console.log('   Log in with either the username or the email.');
   console.log('⚠️  Please change the password immediately after first login!');
 }
 

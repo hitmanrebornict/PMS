@@ -82,7 +82,7 @@ src/i18n/                             landing page ONLY (zh default, en)
 src/index.css                         Tailwind 4 @theme tokens used by the landing page only
 
 prisma/schema.prisma                  source of truth; see §4
-prisma/seed.ts                        SUPER_ADMIN seed (BROKEN: missing username — §9)
+prisma/seed.ts                        SUPER_ADMIN seed — username 'admin'; idempotent (matches username OR email)
 prisma/migrations/                    prisma migrate deploy; ignore stray manual_customer_update.sql
 Dockerfile                            2-stage alpine; esbuild bundles server + seed; prisma generate in both stages
 docker-compose.yml / .override.yml    app :5000 (override → :5001), postgres "stayflow"
@@ -394,7 +394,7 @@ Verified by reading at `3a2e7b8`, not by running. When you encounter one during 
 | # | File | Defect |
 |---|---|---|
 | 1 | `server/routes/reminders.ts:37-38`, `:91` | `customer.email` on a company lease (`customer` null) → TypeError → whole endpoint 500s. Guard with `lease.customer?.email ?? lease.company?.email`. |
-| 2 | `prisma/seed.ts:19-26` | No `username` → NOT NULL violation on fresh DB. Add `username: 'admin'`. |
+| 2 | ~~`prisma/seed.ts` missing `username`~~ | **Fixed** Sept 2026 — seeds `username: 'admin'`, matches on username OR email. |
 | 3 | `src/main.tsx` | `/forgot-password` and `/reset-password` pages don't exist; catch-all sends users to `/`. |
 | 4 | `server/routes/leases.ts:161-164` | Terminate ignores OVERDUE invoices. Add `status: { in: ['PENDING','OVERDUE'] }`. |
 | 5 | `server/routes/leases.ts:334-354` | Edit-regeneration doesn't reconcile PAID periods or cleaning-fee expenses. Business decision needed. |
