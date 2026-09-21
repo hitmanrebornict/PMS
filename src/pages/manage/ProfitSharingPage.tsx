@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { ChevronLeft, ChevronDown, ChevronRight, Search, Save, Calendar, TrendingUp } from 'lucide-react';
+import { ChevronLeft, ChevronDown, ChevronRight, Search, Save, Calendar, TrendingUp, Lock } from 'lucide-react';
 import { useApi } from '../../hooks/useApi';
 import { useAuth } from '../../contexts/AuthContext';
 import { UnitShareEditor } from '../../components/manage/UnitShareEditor';
@@ -145,6 +145,11 @@ export function ProfitSharingPage() {
     u.unitNumber.toLowerCase().includes(search.toLowerCase()) ||
     u.propertyName.toLowerCase().includes(search.toLowerCase())
   );
+
+  // A cutoff is final once saved — the server refuses a second save for the
+  // same unit/month/year, so the form reflects that rather than letting the
+  // user fill it in and then fail.
+  const isLocked = !!calc?.savedRecord;
 
   // ─── Unit list view ────────────────────────────────────────────
   if (!selectedUnit) {
@@ -503,8 +508,12 @@ export function ProfitSharingPage() {
           {/* Saved record indicator */}
           {calc.savedRecord && (
             <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3 mb-4 text-sm text-emerald-700 leading-snug">
-              Cutoff saved on {fmtDate(calc.savedRecord.updatedAt)}
+              <span className="font-medium">Cutoff saved on {fmtDate(calc.savedRecord.createdAt)} — this month is final.</span>
               <span className="text-emerald-600"> · Fee snapshot: MYR {fmt(calc.savedRecord.guaranteeFeeSnapshot)}</span>
+              <div className="text-emerald-600/80 text-xs mt-1">
+                The figures above are recalculated live and may drift from the saved record if a payment
+                or expense is recorded later. The saved cutoff is what was distributed.
+              </div>
             </div>
           )}
 
@@ -515,21 +524,28 @@ export function ProfitSharingPage() {
               value={notes}
               onChange={e => setNotes(e.target.value)}
               rows={3}
-              className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-indigo-500 outline-none resize-none"
-              placeholder="Add notes for this cutoff..."
+              disabled={isLocked}
+              className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-indigo-500 outline-none resize-none disabled:bg-slate-50 disabled:text-slate-500"
+              placeholder={isLocked ? 'No notes were saved with this cutoff.' : 'Add notes for this cutoff...'}
             />
             <div className="flex items-center justify-between mt-3 gap-3">
               {saveSuccess && (
                 <span className="text-sm text-emerald-600 font-medium">Cutoff saved successfully!</span>
               )}
+              {isLocked && !saveSuccess && (
+                <span className="text-xs text-slate-400">
+                  A cutoff can only be saved once per month.
+                </span>
+              )}
               <div className="ml-auto">
                 <button
                   onClick={handleSave}
-                  disabled={saving}
-                  className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-lg text-sm font-medium transition-colors"
+                  disabled={saving || isLocked}
+                  title={isLocked ? 'This month has already been cut off and cannot be changed' : undefined}
+                  className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg text-sm font-medium transition-colors"
                 >
-                  <Save size={15} />
-                  {saving ? 'Saving...' : calc.savedRecord ? 'Update Cutoff' : 'Save Cutoff'}
+                  {isLocked ? <Lock size={15} /> : <Save size={15} />}
+                  {saving ? 'Saving...' : isLocked ? 'Cutoff Saved' : 'Save Cutoff'}
                 </button>
               </div>
             </div>

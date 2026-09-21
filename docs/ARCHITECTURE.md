@@ -176,7 +176,7 @@ erDiagram
 | **Owner / OwnerAgreement** | The landlord and the contract under which the operator pays them. Creating an agreement pre-generates one `Expense` per calendar month for its whole duration (§5.5). |
 | **Investment** | Capital contributed by a Customer to a Unit. Status is manual (ACTIVE / MATURED / WITHDRAWN). |
 | **UnitShare** | `(unitId, userId)` → percentage. Replaced wholesale on each save; total may be < 100 %. |
-| **ProfitSharingRecord** | A saved monthly "cutoff" for one unit: snapshot of sales, expenses, guarantee fee, final profit. Unique on `(unitId, month, year)`; re-saving overwrites. |
+| **ProfitSharingRecord** | A saved monthly "cutoff" for one unit: snapshot of sales, expenses, guarantee fee, final profit. Unique on `(unitId, month, year)` and **write-once** — a second save is refused with 409 (§5.7). |
 | **ProfitSharingAllocation** | The per-user split of a record, snapshotted at save time (including `userName`). |
 | **User** | `username` is the required unique identifier; `email` is optional-unique. |
 | **RefreshToken** | Hashed opaque tokens; rotated on every refresh. Rows are never purged. |
@@ -192,7 +192,7 @@ This is one of the most important things to internalise:
 |---|---|
 | **Soft delete** — `DELETE` sets `isActive = false`; every list query filters `isActive: true` | Customer, Company, DataSource, MasterProperty (+ its Units), Unit, Carpark, ExpenseType, Expense, Owner, OwnerAgreement, Investment, User (via `isActive` on update), LeaseAgreement (guarded — §5.3) |
 | **Status only, never deleted** | LeaseDeposit, ProfitSharingRecord. A lease's own lifecycle is still `status` (UPCOMING / ACTIVE / TERMINATED / COMPLETED); deleting is the escape hatch for a mistaken booking, not a lifecycle step. |
-| **Hard delete** | Invoice — but *only* as a side effect of editing a lease's dates/price (§9.6); File; UnitShare (replaced wholesale); ProfitSharingAllocation (recreated on re-save) |
+| **Hard delete** | Invoice — but *only* as a side effect of editing a lease's dates/price (§9.6); File; UnitShare (replaced wholesale) |
 
 Consequences:
 
@@ -393,7 +393,13 @@ allocations   = largestRemainder(finalProfit, unitShares)   // cents-exact, sums
 
 The guarantee-fee rule deducts the **whole** fee whenever sales fall short of it — not the shortfall. If that is not the intended business rule, this is where to change it (`profitSharing.ts:247` and `:367`, duplicated).
 
-Saving (`POST /records`) upserts the record for that `(unit, month, year)`, deletes and recreates allocations from the **current** `UnitShare` rows, and snapshots `userName`. A `PROFIT_SHARING` user can save a cutoff for any unit they hold a share in; only `MANAGER+` can edit the share percentages.
+**A cutoff is write-once.** `POST /records` creates the record and its allocations for that `(unit, month, year)` and a second save is refused with **409** — enforced by an existence check *and* by the unique constraint, so a stale page or a direct API call cannot overwrite it either. The UI reflects this: the button reads "Save Cutoff" and, once saved, becomes a disabled "Cutoff Saved" with the notes field locked.
+
+This matters because a cutoff is the record of what was actually **paid out**. Recomputing it later would re-split a settled month using today's `UnitShare` percentages and leave no trace of the figures the owners received. Allocations snapshot `userName` **and** `percentage` at save time for the same reason.
+
+The trade-off, accepted deliberately: a cutoff **cannot be corrected in the app**. If a September-period invoice is settled in October after September was cut off, the saved record stays at the lower figure — the live panel above it will disagree. Fixing a genuine mistake means deleting the row in the database. The figures shown above the button are always recalculated live; only the saved record is frozen.
+
+A `PROFIT_SHARING` user can save a cutoff for any unit they hold a share in; only `MANAGER+` can edit the share percentages.
 
 ---
 
@@ -526,7 +532,7 @@ requireProfitSharingOrViewer   // PROFIT_SHARING  OR  level ≥ VIEWER
 | `/api/profit-sharing/units`, `/shareable-users` | GET | PROFIT_SHARING or Viewer+ | units filtered to own shares for PROFIT_SHARING |
 | `/api/profit-sharing/:unitId/shares` | GET, PUT | PROFIT_SHARING/Viewer+ read, **Manager** write | PUT replaces all shares |
 | `/api/profit-sharing/:unitId/calculate?year&month` | GET | PROFIT_SHARING or Viewer+ | live numbers + saved record if any |
-| `/api/profit-sharing/:unitId/records` | GET, POST | PROFIT_SHARING or Viewer+ | POST upserts the cutoff |
+| `/api/profit-sharing/:unitId/records` | GET, POST | PROFIT_SHARING or Viewer+ | POST saves the cutoff **once**; 409 if one already exists |
 | `/api/upload` | POST | Manager | multipart `file` + optional `customerId`, `leaseId`, `category` |
 | `/api/upload/:id` | GET, DELETE | any authenticated / Manager | GET has **no role check** |
 | `/api/reminders/rental`, `/lease` | POST | ADMIN | email tenants; **crashes on company leases** (§10) |
@@ -596,7 +602,7 @@ There is exactly one scheduled job: `syncLeaseStatuses()` in `server/services/le
 Covered in §5.6. The parts to be careful with:
 
 - **Profit Sharing dates income by billing period; the other two date it by payment.** `profitSharing.ts` filters `Invoice.periodStart` into the month, so rent for a period starting 9 Sep counts in September even when paid on 10 Oct. `profit.ts` and `investmentAnalysis.ts` still filter on `paidAt`, so the same payment lands in October there. **The two will not reconcile** — this is intentional (requested Sept 2026), not a bug. All three now use UTC month boundaries.
-- Because the paid-only rule was kept, a late payment **retroactively changes a closed month** in Profit Sharing. A September cutoff saved and paid out in early October will grow if a September-period invoice is settled on 10 October; the record must be re-saved to pick it up.
+- Because the paid-only rule was kept, a late payment changes what the **live panel** shows for a closed month: a September-period invoice settled on 10 October appears in September's recalculation. The **saved cutoff does not move** — it is write-once (§5.7) — so the two will disagree, and that disagreement is the intended signal that money arrived after the month was settled.
 - **Expense status is ignored** by all three. Future PENDING owner payments count now.
 - **Partial payments are invisible** until fully paid (§5.4).
 - The guarantee-fee rule (§5.7) is duplicated in two handlers; change both.
