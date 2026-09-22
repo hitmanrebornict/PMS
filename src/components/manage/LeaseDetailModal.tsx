@@ -50,6 +50,14 @@ function toInputDate(dateStr: string): string {
   return new Date(dateStr).toISOString().slice(0, 10);
 }
 
+/** Today in the user's own calendar. `toISOString()` would return the UTC date,
+ *  which is the previous day for anyone east of UTC late in the evening. */
+function todayInputDate(): string {
+  const d = new Date();
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+
 function getAssetLabel(lease: LeaseDetail): string {
   if (lease.unit) return `${lease.unit.unitNumber} - ${lease.unit.property.name}`;
   if (lease.carpark) return `Carpark ${lease.carpark.carparkNumber}`;
@@ -60,7 +68,7 @@ function getAssetLabel(lease: LeaseDetail): string {
 
 interface PayInvoicePromptProps {
   remaining: number;
-  onConfirm: (amount: number, paymentMethod: string, referenceNo?: string) => void;
+  onConfirm: (amount: number, paymentMethod: string, referenceNo: string | undefined, paidAt: string) => void;
   onCancel: () => void;
 }
 
@@ -68,10 +76,15 @@ function PayInvoicePrompt({ remaining, onConfirm, onCancel }: PayInvoicePromptPr
   const [value, setValue] = useState(String(remaining));
   const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'BANK_TRANSFER'>('CASH');
   const [referenceNo, setReferenceNo] = useState('');
+  // The date the money was actually received — this is what Profit and Profit
+  // Sharing use, so it must be the real date, not when the form was submitted.
+  const today = todayInputDate();
+  const [paidAt, setPaidAt] = useState(today);
 
   const parsedAmount = parseFloat(value);
   const valid =
     !isNaN(parsedAmount) && parsedAmount > 0 &&
+    !!paidAt && paidAt <= today &&
     (paymentMethod !== 'BANK_TRANSFER' || referenceNo.trim().length > 0);
 
   return (
@@ -96,6 +109,25 @@ function PayInvoicePrompt({ remaining, onConfirm, onCancel }: PayInvoicePromptPr
               autoFocus
             />
           </div>
+        </div>
+
+        {/* Payment date — drives which month this money is reported in */}
+        <div>
+          <label className="block text-sm text-slate-600 mb-1">
+            Date received <span className="text-rose-500">*</span>
+          </label>
+          <input
+            type="date"
+            lang="en-GB"
+            value={paidAt}
+            max={today}
+            onChange={e => setPaidAt(e.target.value)}
+            className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          />
+          <p className="text-xs text-slate-400 mt-1">
+            Determines the month this payment appears in on Profit and Profit Sharing.
+            Defaults to today — change it if the money came in earlier.
+          </p>
         </div>
 
         {/* Payment Method */}
@@ -155,6 +187,7 @@ function PayInvoicePrompt({ remaining, onConfirm, onCancel }: PayInvoicePromptPr
               parsedAmount,
               paymentMethod,
               paymentMethod === 'BANK_TRANSFER' ? referenceNo : undefined,
+              paidAt,
             )}
             disabled={!valid}
             className="px-4 py-2 text-sm font-medium bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50"
@@ -385,7 +418,7 @@ export function LeaseDetailModal({ isOpen, onClose, leaseId, onAction }: LeaseDe
     });
   };
 
-  const handlePayInvoice = async (invoiceId: string, amount: number, paymentMethod?: string, referenceNo?: string) => {
+  const handlePayInvoice = async (invoiceId: string, amount: number, paymentMethod?: string, referenceNo?: string, paidAt?: string) => {
     setActionLoading(true);
     try {
       const res = await apiFetch(`/api/invoices/${invoiceId}/pay`, {
@@ -394,6 +427,7 @@ export function LeaseDetailModal({ isOpen, onClose, leaseId, onAction }: LeaseDe
           amount,
           ...(paymentMethod ? { paymentMethod } : {}),
           ...(referenceNo   ? { referenceNo   } : {}),
+          ...(paidAt        ? { paidAt        } : {}),
         }),
       });
       if (res.ok) {
@@ -1153,10 +1187,10 @@ export function LeaseDetailModal({ isOpen, onClose, leaseId, onAction }: LeaseDe
       {payInvoicePrompt && (
         <PayInvoicePrompt
           remaining={payInvoicePrompt.remaining}
-          onConfirm={(amount, paymentMethod, referenceNo) => {
+          onConfirm={(amount, paymentMethod, referenceNo, paidAt) => {
             const { invoiceId } = payInvoicePrompt;
             setPayInvoicePrompt(null);
-            handlePayInvoice(invoiceId, amount, paymentMethod, referenceNo);
+            handlePayInvoice(invoiceId, amount, paymentMethod, referenceNo, paidAt);
           }}
           onCancel={() => setPayInvoicePrompt(null)}
         />

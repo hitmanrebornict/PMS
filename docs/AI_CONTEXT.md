@@ -198,7 +198,8 @@ GET   /api/leases/:id/files              V
 DELETE /api/leases/:id/files/:fileId     M
 
 PATCH /api/invoices/:id                  M        {amount?, dueDate?, periodStart?, periodEnd?} not PAID/CANCELLED
-PATCH /api/invoices/:id/pay              M        {amount, paymentMethod?, referenceNo?} partial ok; PAID when paidAmount≥amount
+PATCH /api/invoices/:id/pay              M        {amount, paymentMethod?, referenceNo?, paidAt?} partial ok; PAID when paidAmount≥amount.
+                                                  paidAt = YYYY-MM-DD date received (default today, future → 400); stored UTC midnight
 GET   /api/invoices/:id/pdf              V        pdfkit stream
 
 PATCH /api/deposits/:id                  M        {action: receive|refund|forfeit|editAmount, amount}  forfeit.amount = returned-to-tenant
@@ -261,8 +262,8 @@ Numbered so you can cite them. File anchors are approximate.
 - Refresh tokens are never purged.
 
 ### 6.2 Income & expense definition (three copies)
-- Income in `profit.ts` / `investmentAnalysis.ts` = `Invoice` with `status='PAID'` and **`paidAt`** in range, summed by `amount` (not `paidAmount`).
-- Income in `profitSharing.ts` = `Invoice` with `status='PAID'` and **`periodStart`** in range. Rent for a period starting 9 Sep counts in September even if paid 10 Oct. **Deliberately different from the other two** (requested Sept 2026); they will not reconcile.
+- Income in `profit.ts` / `investmentAnalysis.ts` = `Invoice` with `status='PAID'` and **`paidAt`** in range, summed by `amount` (not `paidAmount`). `paidAt` is **user-entered** on the Record Payment dialog (default today, future rejected) and stored as UTC midnight — never the click time.
+- Income in `profitSharing.ts` = the same rule, scoped to one unit. **All three agree** on `paidAt` with UTC month bounds — but they are still three copies, so change all of them together.
 - Partial payments contribute **nothing** until fully paid, then the full amount at once.
 - Every income/expense query filters `lease: { …, isActive: true }`.
 - Expense = `Expense` with `isActive` and `expenseDate` in range, **regardless of `status`** (future PENDING owner payments count now).
@@ -366,7 +367,7 @@ Content lives in `src/i18n/translations.ts` (both `zh` and `en` keys; `t()` pick
 
 - OVERDUE and UPCOMING→ACTIVE are handled by `syncLeaseStatuses()` (boot, hourly, and on `GET /api/leases`).
 - A lease past its end date still does NOT auto-complete; its unit stays OCCUPIED until someone closes it.
-- Three profit calculators; profit-sharing dates income by invoice `periodStart`, the other two by `paidAt` — they do not reconcile, by design.
+- Three profit calculators, all now dating income by the user-entered `paidAt` with UTC month bounds. Still three copies — change together.
 - A lease can be soft-deleted; every lease query must filter `isActive: true`, including the booking conflict check.
 - Expense status is ignored by every report.
 - Partial invoice payments are invisible to profit until complete.

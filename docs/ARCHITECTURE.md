@@ -335,7 +335,7 @@ stateDiagram-v2
   }
 ```
 
-- Paying an invoice (`PATCH /api/invoices/:id/pay`) adds to `paidAmount`, caps it at `amount`, and only when the cap is reached sets `status = PAID` and `paidAt = now` (`leases.ts:579-590`). **Partial payments are invisible to every profit report** until the last payment lands, at which point the *full* amount is recognised on that date.
+- Paying an invoice (`PATCH /api/invoices/:id/pay`) adds to `paidAmount`, caps it at `amount`, and only when the cap is reached sets `status = PAID` and `paidAt`. **`paidAt` is the date the user enters in the Record Payment dialog**, defaulting to today and rejected if in the future — it is not the moment the button was clicked. It is stored as UTC midnight of that date, which is what makes the UTC month filters in the reports land on the intended day. **Partial payments are invisible to every profit report** until the last payment lands, at which point the *full* amount is recognised on the date given with that final payment.
 - Deposit **forfeit** takes an `amount` that means *"how much to give back"* — `0` is a full forfeit (`leases.ts:799-807`). The parameter name is the opposite of what you'd guess.
 - Deposit `editAmount` is allowed in any state before refund/forfeit and preserves status even if `receivedAmount` now exceeds the new `amount`.
 
@@ -364,16 +364,16 @@ There is no stored ledger. Every report re-reads live rows. Three separate endpo
 
 | | `/api/profit` (+ `/monthly`, `/monthly/roomtype`) | `/api/investment-analysis` | `/api/profit-sharing/:unitId/calculate` & `/records` |
 |---|---|---|---|
-| **Income** | `Invoice.status = PAID` and **`paidAt`** in range → `amount` | same | `Invoice.status = PAID` and **`periodStart`** in range → `amount` (§5.7) |
+| **Income** | `Invoice.status = PAID` and **`paidAt`** in range → `amount` | same | same, for one unit |
 | **Expenses** | `Expense.isActive` and `expenseDate` in range → `amount`, **any status** | same | same |
 | **Carparks** | carpark-lease invoices summed separately (no expenses) | n/a (units only) | n/a |
-| **Month boundaries** | **UTC** (`Date.UTC`) | **UTC** | **UTC** (`monthBounds()`) |
+| **Month boundaries** | **UTC** (`Date.UTC`) | **UTC** | **UTC** (`monthBounds()`) — all three agree |
 | **Extra rule** | none | cumulative net since earliest investment start; break-even when cumulative ≥ total capital | guarantee fee (§5.7) and percentage split |
 | **File** | `profit.ts` | `investmentAnalysis.ts` | `profitSharing.ts` |
 
 Implications:
 
-- Income is **cash basis** and dated by *when it was paid*, not the billing period. A January invoice paid in March is March income everywhere.
+- Income is **cash basis** and dated by *when the money was received*, not the billing period. A January invoice received in March is March income on every page. The received date is entered by hand when recording the payment (§5.4), so it reflects the bank, not the data-entry day.
 - Expenses are dated by `expenseDate` regardless of `status`. A PENDING owner payment for next month already counts as next month's expense. Cleaning-fee expenses created at booking time count in each period even if the lease is later terminated (they are not voided — §9.6).
 - Editing a historical expense or re-paying an invoice **changes history** in all three reports. Only saved `ProfitSharingRecord` rows are frozen.
 - Promotion is *not* an expense; it lowers invoice `amount`. The invoice PDF reconstructs gross = amount + promotion for display (`leases.ts:633-636`).
@@ -383,7 +383,7 @@ Implications:
 For a unit, a month, and a year (`profitSharing.ts:191-318` live; `321-448` save):
 
 ```
-totalSales    = Σ PAID invoice.amount with periodStart in month   ← billing period, NOT payment date
+totalSales    = Σ PAID invoice.amount with paidAt in month        ← date received (user-entered)
 totalExpenses = Σ active expense.amount with expenseDate in month
 netProfit     = totalSales − totalExpenses
 guaranteeFee  = unit.guaranteeFee ?? 0
@@ -601,8 +601,8 @@ There is exactly one scheduled job: `syncLeaseStatuses()` in `server/services/le
 
 Covered in §5.6. The parts to be careful with:
 
-- **Profit Sharing dates income by billing period; the other two date it by payment.** `profitSharing.ts` filters `Invoice.periodStart` into the month, so rent for a period starting 9 Sep counts in September even when paid on 10 Oct. `profit.ts` and `investmentAnalysis.ts` still filter on `paidAt`, so the same payment lands in October there. **The two will not reconcile** — this is intentional (requested Sept 2026), not a bug. All three now use UTC month boundaries.
-- Because the paid-only rule was kept, a late payment changes what the **live panel** shows for a closed month: a September-period invoice settled on 10 October appears in September's recalculation. The **saved cutoff does not move** — it is write-once (§5.7) — so the two will disagree, and that disagreement is the intended signal that money arrived after the month was settled.
+- **All three calculators now agree on the date basis:** `paidAt`, the user-entered date received, with UTC month boundaries. They are still three separate copies of the logic, so a change to what counts as income must be made in all of them (`profit.ts` has three handlers, `profitSharing.ts` two, `investmentAnalysis.ts` one).
+- A payment recorded **after** a month was cut off still changes what the **live panel** shows for that month, if the date entered falls inside it. The **saved cutoff does not move** — it is write-once (§5.7) — so the two will disagree, and that disagreement is the intended signal that a payment was back-dated into a settled month.
 - **Expense status is ignored** by all three. Future PENDING owner payments count now.
 - **Partial payments are invisible** until fully paid (§5.4).
 - The guarantee-fee rule (§5.7) is duplicated in two handlers; change both.

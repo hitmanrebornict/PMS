@@ -228,10 +228,10 @@ router.get('/:unitId/calculate', authenticate, requireProfitSharingOrViewer, asy
     const invoices: any[] = await (prisma.invoice.findMany as any)({
       where: {
         status: 'PAID',
-        // Recognised in the month the billing period STARTS, not the month the
-        // tenant happened to pay. A period starting 9 Sep counts in September
-        // even when it is settled on 10 Oct.
-        periodStart: { gte: monthStart, lte: monthEnd },
+        // Recognised in the month the money was RECEIVED. paidAt is the date
+        // the user entered when recording the payment, not the moment they
+        // clicked — so this is the real cash date. Matches the Profit page.
+        paidAt: { gte: monthStart, lte: monthEnd },
         lease: { unitId, isActive: true },
       },
       select: {
@@ -241,7 +241,7 @@ router.get('/:unitId/calculate', authenticate, requireProfitSharingOrViewer, asy
         periodStart: true,
         periodEnd: true,
       },
-      orderBy: { periodStart: 'asc' },
+      orderBy: { paidAt: 'asc' },
     });
 
     const expenses: any[] = await (prisma.expense.findMany as any)({
@@ -377,7 +377,7 @@ router.post('/:unitId/records', authenticate, requireProfitSharingOrViewer, asyn
     const invoices: any[] = await (prisma.invoice.findMany as any)({
       where: {
         status: 'PAID',
-        periodStart: { gte: monthStart, lte: monthEnd },
+        paidAt: { gte: monthStart, lte: monthEnd },
         lease: { unitId, isActive: true },
       },
       select: { amount: true },

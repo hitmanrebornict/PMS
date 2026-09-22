@@ -614,6 +614,10 @@ const payInvoiceSchema = z.object({
   amount: z.number().positive(),
   paymentMethod: z.enum(['CASH', 'BANK_TRANSFER']).optional(),
   referenceNo: z.string().max(100).optional(),
+  // The date the money was actually received, entered by the user as
+  // YYYY-MM-DD. This is what Profit and Profit Sharing report on, so it must
+  // not be the moment the button was clicked. Defaults to today when omitted.
+  paidAt: z.string().date().optional(),
 });
 
 invoicesRouter.patch('/:id/pay', authenticate, requireManager, async (req: AuthRequest, res: Response) => {
@@ -641,13 +645,23 @@ invoicesRouter.patch('/:id/pay', authenticate, requireManager, async (req: AuthR
     const invoiceAmount = Number(invoice.amount);
     const isFullyPaid = newPaidAmount >= invoiceAmount;
 
+    // Stored as UTC midnight of the date given, so month filters in the profit
+    // reports (which use UTC bounds) land on the day the user actually meant.
+    const receivedOn = parsed.data.paidAt
+      ? new Date(`${parsed.data.paidAt}T00:00:00.000Z`)
+      : new Date();
+    if (receivedOn.getTime() > Date.now()) {
+      res.status(400).json({ error: 'Payment date cannot be in the future' });
+      return;
+    }
+
     const updated = await (prisma.invoice.update as any)({
       where: { id: req.params.id },
       data: {
         paidAmount: new Decimal(Math.min(newPaidAmount, invoiceAmount)),
         ...(parsed.data.paymentMethod ? { paymentMethod: parsed.data.paymentMethod } : {}),
         ...(parsed.data.referenceNo   ? { referenceNo:   parsed.data.referenceNo   } : {}),
-        ...(isFullyPaid ? { status: 'PAID', paidAt: new Date() } : {}),
+        ...(isFullyPaid ? { status: 'PAID', paidAt: receivedOn } : {}),
       },
     });
 

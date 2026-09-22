@@ -318,11 +318,11 @@ export function ProfitSharingPage() {
             {expandSales && (
               <div className="px-4 sm:px-5 py-3">
                 <p className="text-xs text-slate-400 mb-2">
-                  Counted by billing period — an invoice whose period starts in this month is
-                  included here even if it was paid in a later month.
+                  Counted by date received — a payment appears in the month it was actually
+                  collected, using the date entered when it was recorded.
                 </p>
                 {calc.invoices.length === 0 ? (
-                  <p className="text-sm text-slate-400 py-1">No paid invoices billed for this month</p>
+                  <p className="text-sm text-slate-400 py-1">No payments received in this month</p>
                 ) : (
                   <div className="space-y-2">
                     {/* Mobile: stacked cards */}
@@ -330,8 +330,10 @@ export function ProfitSharingPage() {
                       {calc.invoices.map(inv => (
                         <div key={inv.id} className="flex items-center justify-between py-1.5 border-b border-slate-50 last:border-0">
                           <div>
-                            <div className="text-xs font-medium text-slate-700">{fmtDate(inv.periodStart)} – {fmtDate(inv.periodEnd)}</div>
-                            <div className="text-xs text-slate-400 mt-0.5">Paid {fmtDate(inv.paidAt)}</div>
+                            <div className="text-xs font-medium text-slate-700">Received {fmtDate(inv.paidAt)}</div>
+                            <div className="text-xs text-slate-400 mt-0.5">
+                              for {fmtDate(inv.periodStart)} – {fmtDate(inv.periodEnd)}
+                            </div>
                           </div>
                           <div className="text-sm font-semibold text-slate-800 shrink-0 ml-2">MYR {fmt(inv.amount)}</div>
                         </div>
@@ -341,16 +343,16 @@ export function ProfitSharingPage() {
                     <table className="hidden sm:table w-full text-xs mb-1">
                       <thead>
                         <tr className="text-slate-500 border-b border-slate-100">
-                          <th className="text-left pb-1 font-medium">Period</th>
-                          <th className="text-left pb-1 font-medium">Paid On</th>
+                          <th className="text-left pb-1 font-medium">Received On</th>
+                          <th className="text-left pb-1 font-medium">Billing Period</th>
                           <th className="text-right pb-1 font-medium">Amount</th>
                         </tr>
                       </thead>
                       <tbody>
                         {calc.invoices.map(inv => (
                           <tr key={inv.id} className="border-b border-slate-50">
-                            <td className="py-1 text-slate-600">{fmtDate(inv.periodStart)} – {fmtDate(inv.periodEnd)}</td>
-                            <td className="py-1 text-slate-600">{fmtDate(inv.paidAt)}</td>
+                            <td className="py-1 font-medium text-slate-700">{fmtDate(inv.paidAt)}</td>
+                            <td className="py-1 text-slate-500">{fmtDate(inv.periodStart)} – {fmtDate(inv.periodEnd)}</td>
                             <td className="py-1 text-right font-medium text-slate-800">MYR {fmt(inv.amount)}</td>
                           </tr>
                         ))}
