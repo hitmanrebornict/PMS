@@ -32,15 +32,33 @@ function monthBounds(year: number, month: number): { monthStart: Date; monthEnd:
 }
 
 // ─── Largest-remainder profit distribution ────────────────────────────────────
+// Splits finalProfit across the given percentages in whole cents, handing the
+// rounding remainder to the largest fractional parts so the allocations sum
+// exactly to the share of profit being distributed.
+//
+// Percentages may total LESS than 100 — partial allocation is allowed, and the
+// undistributed portion simply stays with the company. The target total must
+// therefore be the allocated share, not the whole profit: using the whole
+// profit made `leftover` the entire unallocated amount (tens of thousands of
+// cents) and the loop then indexed past the end of `order`, throwing and
+// turning the Profit Sharing page into a 500 for any unit not at exactly 100%.
 function distributeProfit(finalProfit: number, shares: { percentage: number }[]): number[] {
   if (shares.length === 0) return [];
-  const totalCents = Math.round(finalProfit * 100);
-  const rawCents = shares.map(s => (s.percentage / 100) * totalCents);
-  const floorCents = rawCents.map(Math.floor);
-  const remainders = rawCents.map((r, i) => r - floorCents[i]);
-  let leftover = totalCents - floorCents.reduce((a, b) => a + b, 0);
-  const order = remainders.map((r, i) => ({ r, i })).sort((a, b) => b.r - a.r);
-  for (let k = 0; k < leftover; k++) floorCents[order[k].i]++;
+
+  const totalCents  = Math.round(finalProfit * 100);
+  const rawCents    = shares.map(s => (s.percentage / 100) * totalCents);
+  const floorCents  = rawCents.map(Math.floor);
+  const remainders  = rawCents.map((r, i) => r - floorCents[i]);
+
+  // What the allocations must add up to: the profit times the percentages
+  // actually assigned (100% → the whole profit; 80% → four fifths of it).
+  const targetCents = Math.round(rawCents.reduce((a, b) => a + b, 0));
+
+  // Flooring each share loses under a cent apiece, so this is 0…shares.length.
+  const leftover = targetCents - floorCents.reduce((a, b) => a + b, 0);
+  const order    = remainders.map((r, i) => ({ r, i })).sort((a, b) => b.r - a.r);
+  for (let k = 0; k < leftover; k++) floorCents[order[k % order.length].i]++;
+
   return floorCents.map(c => c / 100);
 }
 

@@ -388,7 +388,8 @@ totalExpenses = Σ active expense.amount with expenseDate in month
 netProfit     = totalSales − totalExpenses
 guaranteeFee  = unit.guaranteeFee ?? 0
 finalProfit   = totalSales >= guaranteeFee ? netProfit : netProfit − guaranteeFee
-allocations   = largestRemainder(finalProfit, unitShares)   // cents-exact, sums to finalProfit
+allocations   = largestRemainder(finalProfit, unitShares)   // cents-exact; sums to the allocated
+                                                            // share (100% → all of finalProfit)
 ```
 
 The guarantee-fee rule deducts the **whole** fee whenever sales fall short of it — not the shortfall. If that is not the intended business rule, this is where to change it (`profitSharing.ts:247` and `:367`, duplicated).

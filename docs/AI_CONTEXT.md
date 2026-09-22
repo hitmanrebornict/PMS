@@ -270,7 +270,7 @@ Numbered so you can cite them. File anchors are approximate.
 - Promotion reduces invoice `amount`; it is **not** an expense. PDF shows gross = `amount + promotionAmount`.
 - Month boundaries: UTC everywhere (`profitSharing.ts` uses the shared `monthBounds()` helper).
 - Guarantee fee: `finalProfit = totalSales >= fee ? net : net - fee` (`profitSharing.ts:247`, `:367`). Whole fee deducted on shortfall, not the gap.
-- Allocation = largest-remainder in cents (`profitSharing.ts:23-33`); sums exactly to `finalProfit`.
+- Allocation = largest-remainder in cents (`distributeProfit`); sums exactly to the **allocated share** of `finalProfit` — the whole profit at 100%, four fifths of it at 80%. Percentages may total under 100 (`PUT /shares` only rejects over 100); the undistributed remainder stays with the company and is not shown as a line.
 - Saved `ProfitSharingRecord` is a permanent snapshot: **write-once**. A second POST for the same (unit, month, year) returns 409, guarded by an existence check and by the unique constraint (P2002 → 409). Allocations are created with it and never rebuilt, so a later change to `UnitShare` cannot re-split a settled month.
 
 ### 6.3 What a booking creates (one transaction, `lease.service.ts:138-290`)
