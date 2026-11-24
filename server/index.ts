@@ -99,10 +99,12 @@ app.get('/api/health', (_req, res) => {
 // ─── Serve React Frontend (Production) ───────────────────────────────────────
 
 if (isProd) {
-  const distPath = path.join(__dirname, '..');
-  app.use(express.static(distPath));
+  // Only the browser build (vite.config.ts outDir). Never dist/ itself: it also
+  // holds the server bundle (dist/server/index.js), which must not be served.
+  const clientPath = path.join(__dirname, '..', 'client');
+  app.use(express.static(clientPath));
   app.get('*', (_req, res) => {
-    res.sendFile(path.join(distPath, 'index.html'));
+    res.sendFile(path.join(clientPath, 'index.html'));
   });
 }
 

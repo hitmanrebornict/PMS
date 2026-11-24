@@ -75,7 +75,7 @@ flowchart LR
 ```
 
 - **Development:** Vite dev server on `:3000` serves the React app and proxies `/api` to Express on `:5000` (`vite.config.ts`). Both start with `npm run dev`.
-- **Production:** Express serves the built SPA from `dist/` and falls back every unknown path to `index.html` (`server/index.ts:100-106`). CORS is `origin: false` — only same-origin requests are accepted.
+- **Production:** Express serves the built SPA from `dist/client/` and falls back every unknown path to `index.html` (`server/index.ts:101-109`). It never serves `dist/` itself, which also holds the server bundle. CORS is `origin: false` — only same-origin requests are accepted.
 
 ---
 
@@ -547,7 +547,7 @@ requireProfitSharingOrViewer   // PROFIT_SHARING  OR  level ≥ VIEWER
 ```bash
 npm run dev           # Vite :3000 + tsx watch server :5000
 npm run lint          # tsc --noEmit — the ONLY automated check; there are no tests
-npm run build         # Vite build → dist/
+npm run build         # Vite build → dist/client/
 npm run db:migrate    # prisma migrate dev   (needs a reachable DB)
 npm run db:deploy     # prisma migrate deploy
 npm run db:seed       # tsx prisma/seed.ts — creates admin / admin@versahome.com.my; safe to re-run
